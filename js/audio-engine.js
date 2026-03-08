@@ -191,51 +191,60 @@ export class AudioEngine {
         // Get frequency data (0-255 per bin, 1024 bins total)
         this.analyser.getByteFrequencyData(this._frequencyData);
 
-        // Split into bands and compute averages
-        // bass: bins 0-10 (low frequencies, kick drum territory)
+        // Split into frequency bands
+        // bass: bins 0-10 (low frequencies, kick drum)
         let bassSum = 0;
         for (let i = 0; i <= 10; i++) {
             bassSum += this._frequencyData[i];
         }
         const bass = bassSum / (11 * 255);
 
-        // mid: bins 10-100 (vocals, melody)
+        // lowMid: bins 10-40 (dhol, tabla, tasha — Indian percussion lives here)
+        let lowMidSum = 0;
+        for (let i = 10; i <= 40; i++) {
+            lowMidSum += this._frequencyData[i];
+        }
+        const lowMid = lowMidSum / (31 * 255);
+
+        // mid: bins 40-100 (vocals, melody)
         let midSum = 0;
-        for (let i = 10; i <= 100; i++) {
+        for (let i = 40; i <= 100; i++) {
             midSum += this._frequencyData[i];
         }
-        const mid = midSum / (91 * 255);
+        const mid = midSum / (61 * 255);
 
-        // treble: bins 100-512 (hi-hats, cymbals)
+        // treble: bins 100-512 (hi-hats, cymbals, jhanjh)
         let trebleSum = 0;
         for (let i = 100; i <= 512; i++) {
             trebleSum += this._frequencyData[i];
         }
         const treble = trebleSum / (413 * 255);
 
-        // energy = weighted average: bass drives dance more
-        const energy = bass * 0.5 + mid * 0.3 + treble * 0.2;
+        // energy = balanced weighting that works for both Western and Indian music
+        // bass + lowMid together capture both kick drums AND dhol/tabla
+        const energy = bass * 0.3 + lowMid * 0.3 + mid * 0.25 + treble * 0.15;
 
-        // Beat detection using rolling energy history
-        this.energyHistory.push(energy);
-        // Keep last ~30 frames (approx 0.5s at 60fps)
+        // Multi-band beat detection: detect beats in bass OR lowMid band
+        // This catches both kick-drum beats (Western) and dhol/tasha hits (Indian)
+        const percussionEnergy = Math.max(bass, lowMid);
+
+        this.energyHistory.push(percussionEnergy);
         if (this.energyHistory.length > 30) {
             this.energyHistory.shift();
         }
 
-        // Compute average energy over the window
         let avgEnergy = 0;
         for (let i = 0; i < this.energyHistory.length; i++) {
             avgEnergy += this.energyHistory[i];
         }
         avgEnergy /= this.energyHistory.length;
 
-        // Detect beat: energy spike above threshold AND cooldown elapsed
+        // Beat detection: spike in percussion bands above threshold AND cooldown elapsed
         const currentTime = this.audioContext ? this.audioContext.currentTime : 0;
         const isBeat =
-            energy > avgEnergy * this.beatThreshold &&
+            percussionEnergy > avgEnergy * this.beatThreshold &&
             (currentTime - this.lastBeatTime) > this.beatCooldown &&
-            this.energyHistory.length >= 5; // need some history before detecting
+            this.energyHistory.length >= 5;
 
         if (isBeat) {
             this.lastBeatTime = currentTime;

@@ -1057,6 +1057,464 @@ const MOVES = [
             },
             { time: 1.0, pose: {} }
         ]
+    },
+
+    // =========================================================================
+    //  INDIAN / BOLLYWOOD-INSPIRED MOVES
+    //  (dhol-tasha, lavani, Bollywood energy)
+    // =========================================================================
+
+    {
+        name: 'shoulderShimmy',
+        energy: 'mid',
+        durationBeats: 2,
+        type: 'arms',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Left shoulder forward, right back
+                time: 0.1,
+                pose: {
+                    leftShoulder:  { x: 8, y: -6 },
+                    rightShoulder: { x: -8, y: 6 },
+                    leftElbow:     { x: 10, y: -4 },
+                    rightElbow:    { x: -10, y: 4 }
+                }
+            },
+            {
+                // Right shoulder forward, left back
+                time: 0.25,
+                pose: {
+                    leftShoulder:  { x: -8, y: 6 },
+                    rightShoulder: { x: 8, y: -6 },
+                    leftElbow:     { x: -10, y: 4 },
+                    rightElbow:    { x: 10, y: -4 }
+                }
+            },
+            {
+                time: 0.4,
+                pose: {
+                    leftShoulder:  { x: 8, y: -6 },
+                    rightShoulder: { x: -8, y: 6 },
+                    leftElbow:     { x: 10, y: -4 },
+                    rightElbow:    { x: -10, y: 4 }
+                }
+            },
+            {
+                time: 0.55,
+                pose: {
+                    leftShoulder:  { x: -8, y: 6 },
+                    rightShoulder: { x: 8, y: -6 },
+                    leftElbow:     { x: -10, y: 4 },
+                    rightElbow:    { x: 10, y: -4 }
+                }
+            },
+            {
+                time: 0.7,
+                pose: {
+                    leftShoulder:  { x: 8, y: -6 },
+                    rightShoulder: { x: -8, y: 6 },
+                    leftElbow:     { x: 10, y: -4 },
+                    rightElbow:    { x: -10, y: 4 }
+                }
+            },
+            {
+                time: 0.85,
+                pose: {
+                    leftShoulder:  { x: -8, y: 6 },
+                    rightShoulder: { x: 8, y: -6 },
+                    leftElbow:     { x: -10, y: 4 },
+                    rightElbow:    { x: 10, y: -4 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'thumka',
+        energy: 'mid',
+        durationBeats: 2,
+        type: 'full-body',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Hip thrust to the right with a dip
+                time: 0.2,
+                pose: {
+                    head:          { x: -8, y: 8 },
+                    neck:          { x: -5, y: 6 },
+                    hip:           { x: 25, y: 8 },
+                    leftKnee:      { x: 10, y: -8 },
+                    rightKnee:     { x: 5, y: 5 },
+                    leftFoot:      { x: 5, y: 0 },
+                    rightFoot:     { x: 0, y: 0 }
+                }
+            },
+            {
+                // Bounce back through center
+                time: 0.4,
+                pose: {
+                    head:          { x: 0, y: 3 },
+                    hip:           { x: 0, y: 3 }
+                }
+            },
+            {
+                // Hip thrust to the left with a dip
+                time: 0.6,
+                pose: {
+                    head:          { x: 8, y: 8 },
+                    neck:          { x: 5, y: 6 },
+                    hip:           { x: -25, y: 8 },
+                    leftKnee:      { x: -5, y: 5 },
+                    rightKnee:     { x: -10, y: -8 },
+                    leftFoot:      { x: 0, y: 0 },
+                    rightFoot:     { x: -5, y: 0 }
+                }
+            },
+            {
+                time: 0.8,
+                pose: {
+                    head:          { x: 0, y: 3 },
+                    hip:           { x: 0, y: 3 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'headTilt',
+        energy: 'low',
+        durationBeats: 2,
+        type: 'arms',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Head tilts left (classic Indian head movement)
+                time: 0.15,
+                pose: {
+                    head: { x: -15, y: 0 },
+                    neck: { x: -5, y: 0 }
+                }
+            },
+            {
+                // Head tilts right
+                time: 0.35,
+                pose: {
+                    head: { x: 15, y: 0 },
+                    neck: { x: 5, y: 0 }
+                }
+            },
+            {
+                time: 0.55,
+                pose: {
+                    head: { x: -15, y: 0 },
+                    neck: { x: -5, y: 0 }
+                }
+            },
+            {
+                time: 0.75,
+                pose: {
+                    head: { x: 15, y: 0 },
+                    neck: { x: 5, y: 0 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'bollywoodArms',
+        energy: 'high',
+        durationBeats: 2,
+        type: 'arms',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Both arms sweep up and out — classic Bollywood opening
+                time: 0.2,
+                pose: {
+                    leftShoulder:  { x: -5, y: -8 },
+                    rightShoulder: { x: 5, y: -8 },
+                    leftElbow:     { x: -30, y: -50 },
+                    rightElbow:    { x: 30, y: -50 },
+                    leftHand:      { x: -55, y: -90 },
+                    rightHand:     { x: 55, y: -90 }
+                }
+            },
+            {
+                // Wrists twist inward (simulated — hands cross over)
+                time: 0.4,
+                pose: {
+                    leftShoulder:  { x: -3, y: -6 },
+                    rightShoulder: { x: 3, y: -6 },
+                    leftElbow:     { x: -15, y: -45 },
+                    rightElbow:    { x: 15, y: -45 },
+                    leftHand:      { x: 10, y: -85 },
+                    rightHand:     { x: -10, y: -85 }
+                }
+            },
+            {
+                // Arms sweep out again
+                time: 0.6,
+                pose: {
+                    leftShoulder:  { x: -5, y: -8 },
+                    rightShoulder: { x: 5, y: -8 },
+                    leftElbow:     { x: -30, y: -50 },
+                    rightElbow:    { x: 30, y: -50 },
+                    leftHand:      { x: -55, y: -90 },
+                    rightHand:     { x: 55, y: -90 }
+                }
+            },
+            {
+                // Wrists twist again
+                time: 0.8,
+                pose: {
+                    leftShoulder:  { x: -3, y: -6 },
+                    rightShoulder: { x: 3, y: -6 },
+                    leftElbow:     { x: -15, y: -45 },
+                    rightElbow:    { x: 15, y: -45 },
+                    leftHand:      { x: 10, y: -85 },
+                    rightHand:     { x: -10, y: -85 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'lavaniStomp',
+        energy: 'high',
+        durationBeats: 2,
+        type: 'full-body',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Stomp right — deep grounded stance, arms wide
+                time: 0.2,
+                pose: {
+                    head:          { x: 10, y: 15 },
+                    neck:          { x: 8, y: 12 },
+                    leftShoulder:  { x: -5, y: 10 },
+                    rightShoulder: { x: 5, y: 10 },
+                    leftElbow:     { x: -20, y: -5 },
+                    rightElbow:    { x: 25, y: -10 },
+                    leftHand:      { x: -35, y: -15 },
+                    rightHand:     { x: 45, y: -25 },
+                    hip:           { x: 15, y: 15 },
+                    leftKnee:      { x: -5, y: 5 },
+                    rightKnee:     { x: 25, y: -15 },
+                    leftFoot:      { x: -5, y: 0 },
+                    rightFoot:     { x: 30, y: 0 }
+                }
+            },
+            {
+                // Rise up through center
+                time: 0.45,
+                pose: {
+                    head:          { x: 0, y: -5 },
+                    neck:          { x: 0, y: -3 }
+                }
+            },
+            {
+                // Stomp left — mirror
+                time: 0.7,
+                pose: {
+                    head:          { x: -10, y: 15 },
+                    neck:          { x: -8, y: 12 },
+                    leftShoulder:  { x: -5, y: 10 },
+                    rightShoulder: { x: 5, y: 10 },
+                    leftElbow:     { x: -25, y: -10 },
+                    rightElbow:    { x: 20, y: -5 },
+                    leftHand:      { x: -45, y: -25 },
+                    rightHand:     { x: 35, y: -15 },
+                    hip:           { x: -15, y: 15 },
+                    leftKnee:      { x: -25, y: -15 },
+                    rightKnee:     { x: 5, y: 5 },
+                    leftFoot:      { x: -30, y: 0 },
+                    rightFoot:     { x: 5, y: 0 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'dholBounce',
+        energy: 'mid',
+        durationBeats: 2,
+        type: 'full-body',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Heavy bounce down — like hitting a dhol beat
+                time: 0.15,
+                pose: {
+                    head:          { x: 0, y: 20 },
+                    neck:          { x: 0, y: 16 },
+                    leftShoulder:  { x: -5, y: 14 },
+                    rightShoulder: { x: 5, y: 14 },
+                    leftElbow:     { x: -8, y: 12 },
+                    rightElbow:    { x: 8, y: 12 },
+                    hip:           { x: 0, y: 16 },
+                    leftKnee:      { x: 12, y: -10 },
+                    rightKnee:     { x: -12, y: -10 }
+                }
+            },
+            {
+                // Spring up
+                time: 0.35,
+                pose: {
+                    head:          { x: 0, y: -8 },
+                    neck:          { x: 0, y: -5 },
+                    leftShoulder:  { x: -3, y: -5 },
+                    rightShoulder: { x: 3, y: -5 }
+                }
+            },
+            {
+                // Second heavy bounce
+                time: 0.6,
+                pose: {
+                    head:          { x: 0, y: 20 },
+                    neck:          { x: 0, y: 16 },
+                    leftShoulder:  { x: 5, y: 14 },
+                    rightShoulder: { x: -5, y: 14 },
+                    leftElbow:     { x: 8, y: 12 },
+                    rightElbow:    { x: -8, y: 12 },
+                    hip:           { x: 0, y: 16 },
+                    leftKnee:      { x: -10, y: -10 },
+                    rightKnee:     { x: 10, y: -10 }
+                }
+            },
+            {
+                // Spring up
+                time: 0.8,
+                pose: {
+                    head:          { x: 0, y: -5 },
+                    neck:          { x: 0, y: -3 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'namaskarArms',
+        energy: 'low',
+        durationBeats: 2,
+        type: 'arms',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Hands come together in namaskar at chest
+                time: 0.25,
+                pose: {
+                    leftElbow:     { x: 15, y: -15 },
+                    rightElbow:    { x: -15, y: -15 },
+                    leftHand:      { x: 80, y: -50 },
+                    rightHand:     { x: -80, y: -50 }
+                }
+            },
+            {
+                // Raise namaskar above head
+                time: 0.5,
+                pose: {
+                    leftShoulder:  { x: 3, y: -5 },
+                    rightShoulder: { x: -3, y: -5 },
+                    leftElbow:     { x: 20, y: -40 },
+                    rightElbow:    { x: -20, y: -40 },
+                    leftHand:      { x: 80, y: -90 },
+                    rightHand:     { x: -80, y: -90 }
+                }
+            },
+            {
+                // Back to chest
+                time: 0.75,
+                pose: {
+                    leftElbow:     { x: 15, y: -15 },
+                    rightElbow:    { x: -15, y: -15 },
+                    leftHand:      { x: 80, y: -50 },
+                    rightHand:     { x: -80, y: -50 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'bhangra',
+        energy: 'high',
+        durationBeats: 4,
+        type: 'full-body',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Squat with one arm up — classic bhangra
+                time: 0.15,
+                pose: {
+                    head:          { x: 0, y: 20 },
+                    neck:          { x: 0, y: 16 },
+                    leftShoulder:  { x: -3, y: 12 },
+                    rightShoulder: { x: 3, y: -5 },
+                    leftElbow:     { x: -5, y: 10 },
+                    rightElbow:    { x: 15, y: -45 },
+                    leftHand:      { x: -8, y: 8 },
+                    rightHand:     { x: 20, y: -90 },
+                    hip:           { x: 0, y: 18 },
+                    leftKnee:      { x: 15, y: -15 },
+                    rightKnee:     { x: -15, y: -15 },
+                    leftFoot:      { x: 10, y: 0 },
+                    rightFoot:     { x: -10, y: 0 }
+                }
+            },
+            {
+                // Spring up, kick right leg
+                time: 0.35,
+                pose: {
+                    head:          { x: 0, y: -10 },
+                    neck:          { x: 0, y: -8 },
+                    rightElbow:    { x: 15, y: -45 },
+                    rightHand:     { x: 20, y: -90 },
+                    hip:           { x: 0, y: -5 },
+                    rightKnee:     { x: 20, y: -30 },
+                    rightFoot:     { x: 35, y: -25 }
+                }
+            },
+            {
+                // Squat again, other arm up
+                time: 0.55,
+                pose: {
+                    head:          { x: 0, y: 20 },
+                    neck:          { x: 0, y: 16 },
+                    leftShoulder:  { x: -3, y: -5 },
+                    rightShoulder: { x: 3, y: 12 },
+                    leftElbow:     { x: -15, y: -45 },
+                    rightElbow:    { x: 5, y: 10 },
+                    leftHand:      { x: -20, y: -90 },
+                    rightHand:     { x: 8, y: 8 },
+                    hip:           { x: 0, y: 18 },
+                    leftKnee:      { x: 15, y: -15 },
+                    rightKnee:     { x: -15, y: -15 },
+                    leftFoot:      { x: 10, y: 0 },
+                    rightFoot:     { x: -10, y: 0 }
+                }
+            },
+            {
+                // Spring up, kick left leg
+                time: 0.75,
+                pose: {
+                    head:          { x: 0, y: -10 },
+                    neck:          { x: 0, y: -8 },
+                    leftElbow:     { x: -15, y: -45 },
+                    leftHand:      { x: -20, y: -90 },
+                    hip:           { x: 0, y: -5 },
+                    leftKnee:      { x: -20, y: -30 },
+                    leftFoot:      { x: -35, y: -25 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
     }
 ];
 
