@@ -88,6 +88,11 @@ export class AudioEngine {
     play() {
         if (!this.audioBuffer || this.isPlaying) return;
 
+        // Resume AudioContext if suspended (browser autoplay policy)
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+
         // Create new BufferSource (they are single-use)
         this.source = this.audioContext.createBufferSource();
         this.source.buffer = this.audioBuffer;

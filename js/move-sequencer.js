@@ -23,9 +23,12 @@ export class MoveSequencer {
         // Idle sway state
         this._idlePhase = 0;
 
+        // Lazy-init flag: moveStartTime will be set on the first update() call
+        // so it uses the same time base as the incoming currentTime (audio position).
+        this._initialized = false;
+
         // Start with a random low-energy move
         this._pickNewMove(false);
-        this.moveStartTime = performance.now() / 1000;
         this._recomputeDuration();
     }
 
@@ -44,6 +47,12 @@ export class MoveSequencer {
      * @param {number} currentTime  Current time in seconds (e.g. performance.now() / 1000)
      */
     update(analysis, currentTime) {
+        // On first call, sync moveStartTime to the incoming time base (audio position)
+        if (!this._initialized) {
+            this.moveStartTime = currentTime;
+            this._initialized = true;
+        }
+
         // 1. Smooth energy tracking (low-pass filter)
         this.energy += (analysis.energy - this.energy) * 0.1;
 

@@ -8,12 +8,31 @@ export class WildTheme {
         this.beatRipples = [];
         this.flashAlpha = 0;
         this.skeleton = new Skeleton();
+        this._needsFullClear = true;
     }
 
     drawBackground(ctx, canvas) {
+        // Full clear on first frame after theme switch to avoid stale content showing through
+        if (this._needsFullClear) {
+            ctx.fillStyle = 'rgb(10, 10, 10)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            this._needsFullClear = false;
+            return;
+        }
+
         // Semi-transparent clear for motion blur trail effect
         ctx.fillStyle = 'rgba(10, 10, 10, 0.25)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    /**
+     * Called when switching to this theme — ensures a full clear on the next frame.
+     */
+    resetClear() {
+        this._needsFullClear = true;
+        this.trails = [];
+        this.particles = [];
+        this.beatRipples = [];
     }
 
     getSkeletonStyle(analysis) {

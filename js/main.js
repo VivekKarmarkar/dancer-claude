@@ -54,6 +54,11 @@ class DancerApp {
                     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 }
 
+                // Tell wild theme to do a full opaque clear on its first frame
+                if (newTheme === 'wild') {
+                    this.themes.wild.resetClear();
+                }
+
                 this.currentTheme = newTheme;
             });
         });
@@ -187,8 +192,21 @@ class DancerApp {
     }
 
     async loadSong(urlOrFile, name) {
-        await this.audio.init();
-        await this.audio.loadAudio(urlOrFile);
+        try {
+            await this.audio.init();
+            await this.audio.loadAudio(urlOrFile);
+        } catch (err) {
+            console.error('Failed to load audio:', err);
+            document.querySelector('.now-playing').textContent =
+                `Failed to load "${name}". Try uploading a file instead.`;
+            return;
+        }
+
+        // Reset sequencer time base for the new song
+        this.sequencer._initialized = false;
+        this.sequencer.moveStartTime = 0;
+        this.sequencer.moveProgress = 0;
+        this.sequencer.beatTimes = [];
 
         // Update UI
         document.querySelector('.now-playing').textContent = `Now playing: ${name}`;
