@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dancer Claude</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Dancer Claude</h1>
+      <div class="theme-toggle">
+        <button class="theme-btn active" data-theme="minimal">Minimal</button>
+        <button class="theme-btn" data-theme="stylized">Stylized</button>
+        <button class="theme-btn" data-theme="wild">Wild</button>
+      </div>
+    </header>
+
+    <canvas id="dance-floor" width="800" height="500"></canvas>
+
+    <section class="playback">
+      <p class="now-playing">No song loaded</p>
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+      <span class="time-display">0:00 / 0:00</span>
+    </section>
+
+    <section class="song-selection">
+      <div class="preset-buttons"></div>
+      <hr class="divider">
+      <label class="upload-label">
+        Upload Song
+        <input type="file" accept="audio/*" id="file-upload" hidden>
+      </label>
+    </section>
+
+    <section class="controls">
+      <button id="play-btn" disabled>Play</button>
+      <button id="record-btn" disabled>Record</button>
+      <button id="record-full-btn" disabled>Record Full Song</button>
+    </section>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
