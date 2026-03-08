@@ -22,6 +22,11 @@ export class AudioEngine {
 
         // Reusable typed array for frequency data
         this._frequencyData = null;
+
+        // Genre detection: track ratio of lowMid to bass energy over time
+        // Indian music: lowMid dominates (dhol/tabla). Western: bass dominates (kick).
+        this._styleHistory = [];   // rolling window of lowMid/bass ratios
+        this.styleScore = 0;       // 0 = Western, 1 = Indian (smoothed)
     }
 
     async init() {
@@ -250,7 +255,30 @@ export class AudioEngine {
             this.lastBeatTime = currentTime;
         }
 
-        return { energy, bass, mid, treble, isBeat };
+        // Genre/style detection:
+        // Indian percussion (dhol, tabla, tasha) has strong lowMid energy relative to bass.
+        // Western percussion (kick drum, 808) has strong bass relative to lowMid.
+        // Also: Indian music tends to have more prominent mid (vocals, sitar, harmonium).
+        // Compute a style ratio and smooth it over time.
+        const bassTotal = bass + 0.001; // avoid division by zero
+        const styleRatio = lowMid / bassTotal; // >1 = Indian-leaning, <1 = Western-leaning
+        // Also factor in mid-range prominence (Indian music is mid-heavy)
+        const midProminence = mid / (bass + lowMid + 0.001);
+
+        // Combine: higher values = more Indian-sounding
+        const rawStyle = Math.min(1, (styleRatio - 0.5) * 0.6 + midProminence * 0.4);
+
+        this._styleHistory.push(rawStyle);
+        if (this._styleHistory.length > 120) this._styleHistory.shift(); // ~2 seconds of history
+
+        // Smooth: average over the window
+        let styleSum = 0;
+        for (let i = 0; i < this._styleHistory.length; i++) {
+            styleSum += this._styleHistory[i];
+        }
+        this.styleScore = styleSum / this._styleHistory.length;
+
+        return { energy, bass, lowMid, mid, treble, isBeat, styleScore: this.styleScore };
     }
 
     getMediaStreamDestination() {

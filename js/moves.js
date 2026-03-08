@@ -1,6 +1,10 @@
 // Dance move definitions — keyframe-based pose deltas applied on top of the default standing pose.
 // Each keyframe pose contains only the joints that move; omitted joints stay at {x:0, y:0} delta.
 // All moves start and end at the default pose (empty {} pose) for seamless chaining.
+//
+// style: 'universal' = works for any genre
+//        'western'   = best for pop/EDM/hip-hop
+//        'indian'    = best for Bollywood/Marathi/dhol-based music
 
 const MOVES = [
 
@@ -10,6 +14,7 @@ const MOVES = [
 
     {
         name: 'headBob',
+        style: 'universal',
         energy: 'low',
         durationBeats: 1,
         type: 'full-body',
@@ -37,6 +42,7 @@ const MOVES = [
 
     {
         name: 'sway',
+        style: 'universal',
         energy: 'low',
         durationBeats: 2,
         type: 'full-body',
@@ -84,6 +90,7 @@ const MOVES = [
 
     {
         name: 'gentleArmWave',
+        style: 'universal',
         energy: 'low',
         durationBeats: 2,
         type: 'arms',
@@ -111,6 +118,7 @@ const MOVES = [
 
     {
         name: 'stepTouch',
+        style: 'universal',
         energy: 'low',
         durationBeats: 2,
         type: 'legs',
@@ -150,6 +158,7 @@ const MOVES = [
 
     {
         name: 'clap',
+        style: 'universal',
         energy: 'mid',
         durationBeats: 1,
         type: 'arms',
@@ -190,6 +199,7 @@ const MOVES = [
 
     {
         name: 'armPump',
+        style: 'western',
         energy: 'mid',
         durationBeats: 1,
         type: 'arms',
@@ -217,6 +227,7 @@ const MOVES = [
 
     {
         name: 'hipShake',
+        style: 'universal',
         energy: 'mid',
         durationBeats: 2,
         type: 'full-body',
@@ -268,6 +279,7 @@ const MOVES = [
 
     {
         name: 'spin',
+        style: 'western',
         energy: 'mid',
         durationBeats: 4,
         type: 'full-body',
@@ -320,6 +332,7 @@ const MOVES = [
 
     {
         name: 'point',
+        style: 'western',
         energy: 'mid',
         durationBeats: 2,
         type: 'arms',
@@ -357,6 +370,7 @@ const MOVES = [
 
     {
         name: 'jump',
+        style: 'universal',
         energy: 'high',
         durationBeats: 2,
         type: 'full-body',
@@ -419,6 +433,7 @@ const MOVES = [
 
     {
         name: 'kick',
+        style: 'western',
         energy: 'high',
         durationBeats: 2,
         type: 'legs',
@@ -467,6 +482,7 @@ const MOVES = [
 
     {
         name: 'doubleArmWave',
+        style: 'western',
         energy: 'high',
         durationBeats: 2,
         type: 'arms',
@@ -514,6 +530,7 @@ const MOVES = [
 
     {
         name: 'fullSpin',
+        style: 'western',
         energy: 'high',
         durationBeats: 2,
         type: 'full-body',
@@ -575,6 +592,7 @@ const MOVES = [
 
     {
         name: 'runningMan',
+        style: 'western',
         energy: 'high',
         durationBeats: 4,
         type: 'full-body',
@@ -650,6 +668,7 @@ const MOVES = [
 
     {
         name: 'bodyRoll',
+        style: 'universal',
         energy: 'high',
         durationBeats: 2,
         type: 'full-body',
@@ -708,6 +727,7 @@ const MOVES = [
 
     {
         name: 'dab',
+        style: 'western',
         energy: 'high',
         durationBeats: 2,
         type: 'full-body',
@@ -749,6 +769,7 @@ const MOVES = [
 
     {
         name: 'ymca',
+        style: 'western',
         energy: 'mid',
         durationBeats: 4,
         type: 'arms',
@@ -794,6 +815,7 @@ const MOVES = [
 
     {
         name: 'fingerGun',
+        style: 'western',
         energy: 'mid',
         durationBeats: 2,
         type: 'arms',
@@ -839,6 +861,7 @@ const MOVES = [
 
     {
         name: 'shoulderRoll',
+        style: 'universal',
         energy: 'low',
         durationBeats: 2,
         type: 'arms',
@@ -874,6 +897,7 @@ const MOVES = [
 
     {
         name: 'elbowPump',
+        style: 'western',
         energy: 'high',
         durationBeats: 1,
         type: 'arms',
@@ -911,6 +935,7 @@ const MOVES = [
 
     {
         name: 'twoStep',
+        style: 'universal',
         energy: 'mid',
         durationBeats: 2,
         type: 'full-body',
@@ -964,6 +989,7 @@ const MOVES = [
 
     {
         name: 'grooveBounce',
+        style: 'universal',
         energy: 'low',
         durationBeats: 2,
         type: 'full-body',
@@ -1008,6 +1034,7 @@ const MOVES = [
 
     {
         name: 'slideShuffle',
+        style: 'western',
         energy: 'high',
         durationBeats: 2,
         type: 'full-body',
@@ -1066,6 +1093,7 @@ const MOVES = [
 
     {
         name: 'shoulderShimmy',
+        style: 'indian',
         energy: 'mid',
         durationBeats: 2,
         type: 'arms',
@@ -1133,6 +1161,7 @@ const MOVES = [
 
     {
         name: 'thumka',
+        style: 'indian',
         energy: 'mid',
         durationBeats: 2,
         type: 'full-body',
@@ -1185,6 +1214,7 @@ const MOVES = [
 
     {
         name: 'headTilt',
+        style: 'indian',
         energy: 'low',
         durationBeats: 2,
         type: 'arms',
@@ -1226,6 +1256,7 @@ const MOVES = [
 
     {
         name: 'bollywoodArms',
+        style: 'indian',
         energy: 'high',
         durationBeats: 2,
         type: 'arms',
@@ -1285,6 +1316,7 @@ const MOVES = [
 
     {
         name: 'lavaniStomp',
+        style: 'indian',
         energy: 'high',
         durationBeats: 2,
         type: 'full-body',
@@ -1342,6 +1374,7 @@ const MOVES = [
 
     {
         name: 'dholBounce',
+        style: 'indian',
         energy: 'mid',
         durationBeats: 2,
         type: 'full-body',
@@ -1401,6 +1434,7 @@ const MOVES = [
 
     {
         name: 'namaskarArms',
+        style: 'indian',
         energy: 'low',
         durationBeats: 2,
         type: 'arms',
@@ -1444,6 +1478,7 @@ const MOVES = [
 
     {
         name: 'bhangra',
+        style: 'indian',
         energy: 'high',
         durationBeats: 4,
         type: 'full-body',
@@ -1533,6 +1568,27 @@ export function getAllMoves() {
  */
 export function getMovesByEnergy(energy) {
     return MOVES.filter(m => m.energy === energy);
+}
+
+/**
+ * Get moves filtered by energy AND style preference.
+ * @param {'low'|'mid'|'high'} energy
+ * @param {number} styleScore  0 = Western, 1 = Indian
+ * @returns {Array} Moves weighted toward the detected style
+ */
+export function getStyledMoves(energy, styleScore) {
+    const all = MOVES.filter(m => m.energy === energy);
+    if (styleScore > 0.55) {
+        // Indian-leaning: prefer indian + universal, exclude western
+        const preferred = all.filter(m => m.style === 'indian' || m.style === 'universal');
+        return preferred.length > 0 ? preferred : all;
+    } else if (styleScore < 0.35) {
+        // Western-leaning: prefer western + universal, exclude indian
+        const preferred = all.filter(m => m.style === 'western' || m.style === 'universal');
+        return preferred.length > 0 ? preferred : all;
+    }
+    // Neutral: use everything
+    return all;
 }
 
 /**
