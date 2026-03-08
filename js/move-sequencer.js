@@ -1,72 +1,92 @@
 import { getAllMoves, getMovesByEnergy } from './moves.js';
 import { Skeleton, JOINTS } from './skeleton.js';
 
+// Joints belonging to upper vs lower body for layered movement
+const UPPER_JOINTS = ['head', 'neck', 'leftShoulder', 'rightShoulder', 'leftElbow', 'rightElbow', 'leftHand', 'rightHand'];
+const LOWER_JOINTS = ['hip', 'leftKnee', 'rightKnee', 'leftFoot', 'rightFoot'];
+
 export class MoveSequencer {
     constructor() {
         this.skeleton = new Skeleton();
-        this.currentMove = null;
-        this.nextMove = null;
-        this.moveProgress = 0;        // 0..1 progress through current move
-        this.moveStartTime = 0;
-        this.moveDuration = 0;         // duration in seconds (computed from BPM + durationBeats)
-        this.blendProgress = 0;        // 0..1 for blending between moves (0 = no blend)
-        this.blendDuration = 0.15;     // seconds to blend between moves
-        this.blendStartTime = 0;
-        this.isBlending = false;
+
+        // Two independent move layers: upper body and full/lower body
+        this.layers = {
+            primary: this._createLayer(),   // full-body or legs moves
+            arms:    this._createLayer()    // arms-only moves (overlay)
+        };
 
         this.bpm = 120;
         this.energy = 0.3;
-        this.lastMoves = [];           // track last 3 moves to avoid repetition
+        this.beatTimes = [];
         this.beatCount = 0;
-        this.beatTimes = [];           // timestamps of recent beats for BPM estimation
 
-        // Idle sway state
+        // Groove system — persistent bounce on every beat
+        this.groovePhase = 0;         // 0..1 cycles on each beat
+        this.grooveIntensity = 0;     // smoothed, ramps up with energy
+        this.lastBeatTime = 0;
+        this.beatInterval = 0.5;      // seconds between beats (60/bpm)
+
+        // Dynamic amplitude — scales move deltas by energy
+        this.amplitudeScale = 1.0;
+
+        // Micro-variation — random offsets per move instance
+        this.variationSeed = Math.random();
+
+        // Time tracking
+        this._initialized = false;
+        this._lastTime = 0;
         this._idlePhase = 0;
 
-        // Lazy-init flag: moveStartTime will be set on the first update() call
-        // so it uses the same time base as the incoming currentTime (audio position).
-        this._initialized = false;
-
-        // Start with a random low-energy move
-        this._pickNewMove(false);
-        this._recomputeDuration();
+        // Initialize with a move
+        this._pickNewMove(this.layers.primary, false);
+        this._pickNewMove(this.layers.arms, false, 'arms');
     }
 
-    /**
-     * Recompute the current move's duration in seconds from BPM.
-     */
-    _recomputeDuration() {
-        if (this.currentMove) {
-            this.moveDuration = (this.currentMove.durationBeats / this.bpm) * 60;
-        }
+    _createLayer() {
+        return {
+            currentMove: null,
+            nextMove: null,
+            moveProgress: 0,
+            moveStartTime: 0,
+            moveDuration: 1,
+            isBlending: false,
+            blendProgress: 0,
+            blendStartTime: 0,
+            blendDuration: 0.12,
+            lastMoves: [],
+            // Per-instance variation
+            scaleX: 1.0,
+            scaleY: 1.0,
+            offsetX: 0,
+            mirror: false
+        };
     }
 
-    /**
-     * Main update — call once per frame.
-     * @param {Object} analysis  Audio analysis: { energy: number, isBeat: boolean, ... }
-     * @param {number} currentTime  Current time in seconds (e.g. performance.now() / 1000)
-     */
     update(analysis, currentTime) {
-        // On first call, sync moveStartTime to the incoming time base (audio position)
         if (!this._initialized) {
-            this.moveStartTime = currentTime;
+            this.layers.primary.moveStartTime = currentTime;
+            this.layers.arms.moveStartTime = currentTime;
+            this._lastTime = currentTime;
             this._initialized = true;
         }
 
-        // 1. Smooth energy tracking (low-pass filter)
-        this.energy += (analysis.energy - this.energy) * 0.1;
+        const dt = currentTime - this._lastTime;
+        this._lastTime = currentTime;
 
-        // 2. BPM estimation from beat intervals
+        // Smooth energy tracking
+        this.energy += (analysis.energy - this.energy) * 0.12;
+
+        // Dynamic amplitude: quiet = 0.5x, normal = 1x, loud = 1.4x
+        const targetAmp = 0.5 + this.energy * 0.9;
+        this.amplitudeScale += (targetAmp - this.amplitudeScale) * 0.08;
+
+        // BPM estimation
         if (analysis.isBeat) {
             this.beatCount++;
             this.beatTimes.push(currentTime);
+            this.lastBeatTime = currentTime;
+            if (this.beatTimes.length > 8) this.beatTimes.shift();
 
-            // Keep only the last 8 beats for averaging
-            if (this.beatTimes.length > 8) {
-                this.beatTimes.shift();
-            }
-
-            // Need at least 2 beats to compute an interval
             if (this.beatTimes.length >= 2) {
                 const intervals = [];
                 for (let i = 1; i < this.beatTimes.length; i++) {
@@ -74,126 +94,208 @@ export class MoveSequencer {
                 }
                 const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
                 if (avgInterval > 0) {
-                    const estimatedBPM = 60 / avgInterval;
-                    // Clamp to sensible range
-                    const clampedBPM = Math.max(60, Math.min(200, estimatedBPM));
-                    // Smooth BPM changes — don't jump wildly
-                    this.bpm += (clampedBPM - this.bpm) * 0.2;
-                    this._recomputeDuration();
+                    const estimatedBPM = Math.max(60, Math.min(200, 60 / avgInterval));
+                    this.bpm += (estimatedBPM - this.bpm) * 0.2;
+                    this.beatInterval = 60 / this.bpm;
                 }
             }
         }
 
-        // 3. Update move progress
-        if (this.moveDuration > 0) {
-            this.moveProgress = (currentTime - this.moveStartTime) / this.moveDuration;
+        // Groove phase — cycles 0..1 on each beat interval
+        if (this.beatInterval > 0) {
+            const timeSinceBeat = currentTime - this.lastBeatTime;
+            this.groovePhase = (timeSinceBeat / this.beatInterval) % 1;
         }
+        // Groove intensity ramps with energy but always has a minimum when playing
+        const targetGroove = 0.3 + this.energy * 0.7;
+        this.grooveIntensity += (targetGroove - this.grooveIntensity) * 0.08;
 
-        // 4. If move is ending (progress >= 0.85), start blending to the next move
-        if (this.moveProgress >= 0.85 && !this.isBlending) {
-            this.isBlending = true;
-            this.blendStartTime = currentTime;
-            this.blendProgress = 0;
+        // Update both layers
+        this._updateLayer(this.layers.primary, analysis, currentTime);
+        this._updateLayer(this.layers.arms, analysis, currentTime, 'arms');
 
-            // Decide whether this is a power move trigger
-            const isPowerMove = analysis.isBeat && this.energy > 0.7;
-            this._pickNextMove(isPowerMove);
-        }
-
-        // 5. If blending, update blend progress
-        if (this.isBlending) {
-            this.blendProgress = Math.min(
-                1,
-                (currentTime - this.blendStartTime) / this.blendDuration
-            );
-
-            // Blend complete — switch to the next move
-            if (this.blendProgress >= 1) {
-                this.currentMove = this.nextMove;
-                this.nextMove = null;
-                this.moveStartTime = currentTime;
-                this.moveProgress = 0;
-                this.isBlending = false;
-                this.blendProgress = 0;
-                this._recomputeDuration();
+        // Occasionally trigger a new arms overlay on beats
+        if (analysis.isBeat && this.energy > 0.25 && Math.random() < 0.3) {
+            if (this.layers.arms.moveProgress > 0.7 || !this.layers.arms.currentMove) {
+                this._pickNewMove(this.layers.arms, false, 'arms');
+                this.layers.arms.moveStartTime = currentTime;
+                this.layers.arms.moveProgress = 0;
+                this._applyVariation(this.layers.arms);
             }
         }
 
-        // 6. If the move has fully elapsed without a blend starting (safety net)
-        if (this.moveProgress >= 1 && !this.isBlending) {
-            this._pickNewMove(false);
-            this.moveStartTime = currentTime;
-            this.moveProgress = 0;
-            this._recomputeDuration();
-        }
-
-        // Advance idle phase for subtle sway when no move is active
-        this._idlePhase += 0.02;
+        this._idlePhase += dt * 2;
     }
 
-    /**
-     * Return the current pose to render this frame.
-     * @returns {Object} Pose object with all JOINTS having {x, y} absolute positions
-     */
+    _updateLayer(layer, analysis, currentTime, typeFilter) {
+        if (!layer.currentMove) return;
+
+        // Compute move duration
+        layer.moveDuration = (layer.currentMove.durationBeats / this.bpm) * 60;
+        if (layer.moveDuration <= 0) layer.moveDuration = 1;
+
+        // Update progress
+        layer.moveProgress = (currentTime - layer.moveStartTime) / layer.moveDuration;
+
+        // Start blending when move is ~80% done
+        if (layer.moveProgress >= 0.80 && !layer.isBlending) {
+            layer.isBlending = true;
+            layer.blendStartTime = currentTime;
+            layer.blendProgress = 0;
+
+            const isPowerMove = analysis.isBeat && this.energy > 0.65;
+            this._pickNextMove(layer, isPowerMove, typeFilter);
+        }
+
+        // Update blend
+        if (layer.isBlending) {
+            layer.blendProgress = Math.min(1, (currentTime - layer.blendStartTime) / layer.blendDuration);
+
+            if (layer.blendProgress >= 1) {
+                layer.currentMove = layer.nextMove;
+                layer.nextMove = null;
+                layer.moveStartTime = currentTime;
+                layer.moveProgress = 0;
+                layer.isBlending = false;
+                layer.blendProgress = 0;
+                this._applyVariation(layer);
+            }
+        }
+
+        // Safety: move fully elapsed
+        if (layer.moveProgress >= 1 && !layer.isBlending) {
+            this._pickNewMove(layer, false, typeFilter);
+            layer.moveStartTime = currentTime;
+            layer.moveProgress = 0;
+            this._applyVariation(layer);
+        }
+    }
+
     getCurrentPose() {
         const defaultPose = this.skeleton.getDefaultPose();
-
-        if (!this.currentMove) {
-            return this._applyIdleSway(defaultPose);
-        }
-
-        // Get the current move's delta at current progress
-        const clampedProgress = Math.max(0, Math.min(1, this.moveProgress));
-        const currentDelta = this._getMovePoseAtProgress(this.currentMove, clampedProgress);
-
-        let finalDelta;
-
-        if (this.isBlending && this.nextMove) {
-            // Get the next move's delta at t=0 (its starting pose, which should be near default)
-            // As blend progresses we ease from currentDelta into nextDelta-at-start
-            const nextDelta = this._getMovePoseAtProgress(this.nextMove, 0);
-
-            // Smoothstep the blend for a nice transition
-            const t = this.blendProgress;
-            const tSmooth = t * t * (3 - 2 * t);
-
-            finalDelta = {};
-            for (const joint of JOINTS) {
-                const cd = currentDelta[joint] || { x: 0, y: 0 };
-                const nd = nextDelta[joint] || { x: 0, y: 0 };
-                finalDelta[joint] = {
-                    x: cd.x + (nd.x - cd.x) * tSmooth,
-                    y: cd.y + (nd.y - cd.y) * tSmooth
-                };
-            }
-        } else {
-            finalDelta = currentDelta;
-        }
-
-        // Apply deltas to default pose
         const finalPose = {};
+
+        // Start from default
         for (const joint of JOINTS) {
-            const d = finalDelta[joint] || { x: 0, y: 0 };
-            finalPose[joint] = {
-                x: defaultPose[joint].x + d.x,
-                y: defaultPose[joint].y + d.y
-            };
+            finalPose[joint] = { x: defaultPose[joint].x, y: defaultPose[joint].y };
         }
+
+        // 1. Apply groove bounce — persistent beat-synced dip
+        this._applyGroove(finalPose);
+
+        // 2. Apply primary layer (full-body / legs moves)
+        const primaryDelta = this._getLayerDelta(this.layers.primary);
+        this._applyDelta(finalPose, primaryDelta, JOINTS);
+
+        // 3. Apply arms overlay (only affects upper joints)
+        if (this.layers.arms.currentMove && this.layers.arms.currentMove.type === 'arms') {
+            const armsDelta = this._getLayerDelta(this.layers.arms);
+            this._applyDelta(finalPose, armsDelta, UPPER_JOINTS);
+        }
+
+        // 4. Apply subtle secondary motion (head follow-through, arm swing)
+        this._applySecondaryMotion(finalPose);
 
         return finalPose;
     }
 
-    /**
-     * Interpolate between the two keyframes surrounding a given progress value.
-     * Returns a delta object (offsets from default pose) for every joint.
-     * @param {Object} move  A move definition from moves.js
-     * @param {number} progress  0..1
-     * @returns {Object}  { jointName: {x, y}, ... } deltas
-     */
+    _applyGroove(pose) {
+        // Beat bounce: sharp dip down on the beat, smooth rise between beats
+        // Using a sine-based curve that peaks (dips) at phase=0 (on beat)
+        const bounceAmount = this.grooveIntensity * 12 * this.amplitudeScale;
+
+        // Sharp dip on beat, smooth recovery: use a modified sine
+        // phase 0 = beat hit → maximum dip
+        // Curve: cos with steep attack, slow release
+        const phase = this.groovePhase;
+        const bounceCurve = Math.max(0, Math.cos(phase * Math.PI * 2) * Math.exp(-phase * 3));
+
+        const dip = bounceCurve * bounceAmount;
+
+        // Knees bend outward on the dip (looks like actual dancing)
+        const kneeBend = bounceCurve * this.grooveIntensity * 6;
+        const shoulderBounce = bounceCurve * this.grooveIntensity * 3;
+
+        for (const joint of JOINTS) {
+            // Everything dips down on the beat
+            pose[joint].y += dip;
+        }
+
+        // Knees spread slightly on the dip for a grounded look
+        pose.leftKnee.x -= kneeBend;
+        pose.rightKnee.x += kneeBend;
+        pose.leftKnee.y -= kneeBend * 0.5; // slight upward since knees bend
+
+        pose.rightKnee.y -= kneeBend * 0.5;
+
+        // Shoulders have a subtle counter-bounce
+        pose.leftShoulder.y -= shoulderBounce;
+        pose.rightShoulder.y -= shoulderBounce;
+    }
+
+    _getLayerDelta(layer) {
+        if (!layer.currentMove) return {};
+
+        const progress = Math.max(0, Math.min(1, layer.moveProgress));
+        let delta = this._getMovePoseAtProgress(layer.currentMove, progress);
+
+        // Blend with next move if transitioning
+        if (layer.isBlending && layer.nextMove) {
+            const nextDelta = this._getMovePoseAtProgress(layer.nextMove, 0);
+            const t = this._springEase(layer.blendProgress);
+            delta = this._mixDeltas(delta, nextDelta, t);
+        }
+
+        // Apply per-instance variation (scale + offset + mirror)
+        delta = this._applyDeltaVariation(delta, layer);
+
+        // Apply dynamic amplitude
+        for (const joint of JOINTS) {
+            if (delta[joint]) {
+                delta[joint].x *= this.amplitudeScale;
+                delta[joint].y *= this.amplitudeScale;
+            }
+        }
+
+        return delta;
+    }
+
+    _applyDelta(pose, delta, joints) {
+        for (const joint of joints) {
+            const d = delta[joint];
+            if (d) {
+                pose[joint].x += d.x;
+                pose[joint].y += d.y;
+            }
+        }
+    }
+
+    _applySecondaryMotion(pose) {
+        // Head slight delay/follow-through: head lags behind neck direction
+        const neckDx = pose.neck.x - 400; // offset from center
+        const neckDy = pose.neck.y - 155;
+        pose.head.x += neckDx * 0.15;
+        pose.head.y += neckDy * 0.1;
+
+        // Subtle hand swing — hands have slight sinusoidal secondary motion
+        const swing = Math.sin(this._idlePhase * 1.5) * 3 * this.energy;
+        pose.leftHand.x += swing;
+        pose.rightHand.x -= swing;
+        pose.leftHand.y += Math.cos(this._idlePhase * 1.2) * 2 * this.energy;
+        pose.rightHand.y += Math.cos(this._idlePhase * 1.2 + 1) * 2 * this.energy;
+    }
+
+    // Spring-like easing: overshoots slightly then settles
+    _springEase(t) {
+        // Attempt a slight overshoot for natural momentum
+        const c4 = (2 * Math.PI) / 4.5;
+        if (t <= 0) return 0;
+        if (t >= 1) return 1;
+        return 1 - Math.pow(2, -8 * t) * Math.cos(t * c4);
+    }
+
     _getMovePoseAtProgress(move, progress) {
         const keyframes = move.keyframes;
-
-        // Find the two keyframes that surround `progress`
         let kfBefore = keyframes[0];
         let kfAfter = keyframes[keyframes.length - 1];
 
@@ -205,20 +307,13 @@ export class MoveSequencer {
             }
         }
 
-        // Compute local t within this keyframe segment
         const segmentLength = kfAfter.time - kfBefore.time;
         const localT = segmentLength > 0
             ? (progress - kfBefore.time) / segmentLength
             : 0;
 
-        // Smoothstep for nice easing between keyframes
-        const t = localT * localT * (3 - 2 * localT);
-
-        // Collect all joints mentioned in either keyframe
-        const allJoints = new Set([
-            ...Object.keys(kfBefore.pose || {}),
-            ...Object.keys(kfAfter.pose || {})
-        ]);
+        // Use spring easing for more natural motion with momentum
+        const t = this._springEase(localT);
 
         const delta = {};
         for (const joint of JOINTS) {
@@ -229,36 +324,59 @@ export class MoveSequencer {
                 y: before.y + (after.y - before.y) * t
             };
         }
-
         return delta;
     }
 
-    /**
-     * Pick a new move and set it as currentMove (used during initialization and safety resets).
-     * @param {boolean} isPowerMove  If true, always pick a high-energy move
-     */
-    _pickNewMove(isPowerMove) {
-        const move = this._selectMove(isPowerMove);
-        this.currentMove = move;
-        this._trackMove(move);
+    _mixDeltas(deltaA, deltaB, t) {
+        const result = {};
+        for (const joint of JOINTS) {
+            const a = deltaA[joint] || { x: 0, y: 0 };
+            const b = deltaB[joint] || { x: 0, y: 0 };
+            result[joint] = {
+                x: a.x + (b.x - a.x) * t,
+                y: a.y + (b.y - a.y) * t
+            };
+        }
+        return result;
     }
 
-    /**
-     * Pick a new move and set it as nextMove (used during blending).
-     * @param {boolean} isPowerMove  If true, always pick a high-energy move
-     */
-    _pickNextMove(isPowerMove) {
-        const move = this._selectMove(isPowerMove);
-        this.nextMove = move;
-        this._trackMove(move);
+    _applyVariation(layer) {
+        // Random scale 0.85-1.15
+        layer.scaleX = 0.85 + Math.random() * 0.3;
+        layer.scaleY = 0.9 + Math.random() * 0.2;
+        // Random lateral offset ±8px
+        layer.offsetX = (Math.random() - 0.5) * 16;
+        // 30% chance to mirror the move
+        layer.mirror = Math.random() < 0.3;
     }
 
-    /**
-     * Core move selection logic. Picks a move based on energy and avoids recent repeats.
-     * @param {boolean} isPowerMove
-     * @returns {Object} A move definition
-     */
-    _selectMove(isPowerMove) {
+    _applyDeltaVariation(delta, layer) {
+        const result = {};
+        for (const joint of JOINTS) {
+            const d = delta[joint] || { x: 0, y: 0 };
+            let x = d.x * layer.scaleX + layer.offsetX;
+            let y = d.y * layer.scaleY;
+            // Mirror: flip x deltas
+            if (layer.mirror) x = -x;
+            result[joint] = { x, y };
+        }
+        return result;
+    }
+
+    _pickNewMove(layer, isPowerMove, typeFilter) {
+        const move = this._selectMove(layer, isPowerMove, typeFilter);
+        layer.currentMove = move;
+        this._trackMove(layer, move);
+        this._applyVariation(layer);
+    }
+
+    _pickNextMove(layer, isPowerMove, typeFilter) {
+        const move = this._selectMove(layer, isPowerMove, typeFilter);
+        layer.nextMove = move;
+        this._trackMove(layer, move);
+    }
+
+    _selectMove(layer, isPowerMove, typeFilter) {
         let energyLevel;
         if (isPowerMove) {
             energyLevel = 'high';
@@ -270,50 +388,25 @@ export class MoveSequencer {
             energyLevel = 'high';
         }
 
-        const candidates = getMovesByEnergy(energyLevel);
+        let candidates = getMovesByEnergy(energyLevel);
 
-        // Filter out the last 3 moves to avoid repetition
-        const recentNames = this.lastMoves.map(m => m.name);
+        // Filter by type if specified
+        if (typeFilter) {
+            const typed = candidates.filter(m => m.type === typeFilter);
+            if (typed.length > 0) candidates = typed;
+        }
+
+        // Avoid recent repeats
+        const recentNames = layer.lastMoves.map(m => m.name);
         let filtered = candidates.filter(m => !recentNames.includes(m.name));
+        if (filtered.length === 0) filtered = candidates;
 
-        // If nothing left after filtering, use all candidates for that energy
-        if (filtered.length === 0) {
-            filtered = candidates;
-        }
-
-        // Pick a random move from the filtered set
-        const pick = filtered[Math.floor(Math.random() * filtered.length)];
-        return pick;
+        return filtered[Math.floor(Math.random() * filtered.length)];
     }
 
-    /**
-     * Record a move in the history, keeping only the last 3.
-     * @param {Object} move
-     */
-    _trackMove(move) {
+    _trackMove(layer, move) {
         if (!move) return;
-        this.lastMoves.push(move);
-        if (this.lastMoves.length > 3) {
-            this.lastMoves.shift();
-        }
-    }
-
-    /**
-     * Add a very subtle idle sway to a pose (used when no move is active or no audio).
-     * @param {Object} pose
-     * @returns {Object} Pose with subtle sway applied
-     */
-    _applyIdleSway(pose) {
-        const swayX = Math.sin(this._idlePhase) * 3;
-        const swayY = Math.sin(this._idlePhase * 0.7) * 2;
-
-        const result = {};
-        for (const joint of JOINTS) {
-            result[joint] = {
-                x: pose[joint].x + swayX,
-                y: pose[joint].y + swayY
-            };
-        }
-        return result;
+        layer.lastMoves.push(move);
+        if (layer.lastMoves.length > 3) layer.lastMoves.shift();
     }
 }

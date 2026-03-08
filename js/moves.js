@@ -786,6 +786,277 @@ const MOVES = [
             },
             { time: 1.0, pose: {} }
         ]
+    },
+
+    // =========================================================================
+    //  ADDITIONAL ARM MOVES (for layered upper-body overlay)
+    // =========================================================================
+
+    {
+        name: 'fingerGun',
+        energy: 'mid',
+        durationBeats: 2,
+        type: 'arms',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                time: 0.25,
+                pose: {
+                    rightShoulder: { x: 5, y: -3 },
+                    rightElbow:    { x: 25, y: -30 },
+                    rightHand:     { x: 60, y: -50 }
+                }
+            },
+            {
+                // Recoil
+                time: 0.4,
+                pose: {
+                    rightShoulder: { x: 3, y: -2 },
+                    rightElbow:    { x: 20, y: -25 },
+                    rightHand:     { x: 50, y: -40 }
+                }
+            },
+            {
+                // Second shot — other side
+                time: 0.6,
+                pose: {
+                    leftShoulder:  { x: -5, y: -3 },
+                    leftElbow:     { x: -25, y: -30 },
+                    leftHand:      { x: -60, y: -50 }
+                }
+            },
+            {
+                time: 0.75,
+                pose: {
+                    leftShoulder:  { x: -3, y: -2 },
+                    leftElbow:     { x: -20, y: -25 },
+                    leftHand:      { x: -50, y: -40 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'shoulderRoll',
+        energy: 'low',
+        durationBeats: 2,
+        type: 'arms',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                time: 0.2,
+                pose: {
+                    leftShoulder:  { x: 0, y: -10 },
+                    leftElbow:     { x: -5, y: -8 },
+                    rightShoulder: { x: 0, y: 3 }
+                }
+            },
+            {
+                time: 0.5,
+                pose: {
+                    leftShoulder:  { x: 0, y: 3 },
+                    rightShoulder: { x: 0, y: -10 },
+                    rightElbow:    { x: 5, y: -8 }
+                }
+            },
+            {
+                time: 0.8,
+                pose: {
+                    leftShoulder:  { x: 0, y: -10 },
+                    leftElbow:     { x: -5, y: -8 },
+                    rightShoulder: { x: 0, y: 3 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'elbowPump',
+        energy: 'high',
+        durationBeats: 1,
+        type: 'arms',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                time: 0.3,
+                pose: {
+                    leftShoulder:  { x: 5, y: -8 },
+                    rightShoulder: { x: -5, y: -8 },
+                    leftElbow:     { x: 25, y: -35 },
+                    rightElbow:    { x: -25, y: -35 },
+                    leftHand:      { x: 15, y: -20 },
+                    rightHand:     { x: -15, y: -20 }
+                }
+            },
+            {
+                time: 0.6,
+                pose: {
+                    leftShoulder:  { x: 5, y: -5 },
+                    rightShoulder: { x: -5, y: -5 },
+                    leftElbow:     { x: 20, y: -25 },
+                    rightElbow:    { x: -20, y: -25 },
+                    leftHand:      { x: 10, y: -15 },
+                    rightHand:     { x: -10, y: -15 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    // =========================================================================
+    //  ADDITIONAL FULL-BODY GROOVE MOVES
+    // =========================================================================
+
+    {
+        name: 'twoStep',
+        energy: 'mid',
+        durationBeats: 2,
+        type: 'full-body',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Step left, lean into it
+                time: 0.2,
+                pose: {
+                    head:          { x: -15, y: 8 },
+                    neck:          { x: -12, y: 6 },
+                    hip:           { x: -10, y: 8 },
+                    leftKnee:      { x: -20, y: -10 },
+                    rightKnee:     { x: -5, y: 8 },
+                    leftFoot:      { x: -30, y: 0 },
+                    rightFoot:     { x: 5, y: 0 }
+                }
+            },
+            {
+                time: 0.4,
+                pose: {
+                    head:          { x: -8, y: 3 },
+                    neck:          { x: -6, y: 2 },
+                    hip:           { x: -5, y: 3 }
+                }
+            },
+            {
+                // Step right, lean into it
+                time: 0.65,
+                pose: {
+                    head:          { x: 15, y: 8 },
+                    neck:          { x: 12, y: 6 },
+                    hip:           { x: 10, y: 8 },
+                    leftKnee:      { x: 5, y: 8 },
+                    rightKnee:     { x: 20, y: -10 },
+                    leftFoot:      { x: -5, y: 0 },
+                    rightFoot:     { x: 30, y: 0 }
+                }
+            },
+            {
+                time: 0.85,
+                pose: {
+                    head:          { x: 8, y: 3 },
+                    neck:          { x: 6, y: 2 },
+                    hip:           { x: 5, y: 3 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'grooveBounce',
+        energy: 'low',
+        durationBeats: 2,
+        type: 'full-body',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Deep bounce down
+                time: 0.2,
+                pose: {
+                    head:          { x: 0, y: 18 },
+                    neck:          { x: 0, y: 15 },
+                    leftShoulder:  { x: -3, y: 12 },
+                    rightShoulder: { x: 3, y: 12 },
+                    hip:           { x: 0, y: 14 },
+                    leftKnee:      { x: 8, y: -8 },
+                    rightKnee:     { x: -8, y: -8 }
+                }
+            },
+            {
+                time: 0.4,
+                pose: {
+                    head:          { x: 0, y: 3 },
+                    neck:          { x: 0, y: 2 }
+                }
+            },
+            {
+                // Bounce again
+                time: 0.7,
+                pose: {
+                    head:          { x: 0, y: 15 },
+                    neck:          { x: 0, y: 12 },
+                    leftShoulder:  { x: 3, y: 10 },
+                    rightShoulder: { x: -3, y: 10 },
+                    hip:           { x: 0, y: 12 },
+                    leftKnee:      { x: -6, y: -6 },
+                    rightKnee:     { x: 6, y: -6 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
+    },
+
+    {
+        name: 'slideShuffle',
+        energy: 'high',
+        durationBeats: 2,
+        type: 'full-body',
+        keyframes: [
+            { time: 0.0, pose: {} },
+            {
+                // Slide left
+                time: 0.2,
+                pose: {
+                    head:      { x: -30, y: 5 },
+                    neck:      { x: -28, y: 4 },
+                    leftShoulder:  { x: -25, y: 3 },
+                    rightShoulder: { x: -25, y: 3 },
+                    leftElbow:     { x: -22, y: 2 },
+                    rightElbow:    { x: -22, y: 2 },
+                    leftHand:      { x: -20, y: 2 },
+                    rightHand:     { x: -20, y: 2 },
+                    hip:       { x: -25, y: 5 },
+                    leftKnee:  { x: -30, y: -5 },
+                    rightKnee: { x: -15, y: 8 },
+                    leftFoot:  { x: -40, y: 0 },
+                    rightFoot: { x: -10, y: 0 }
+                }
+            },
+            {
+                time: 0.45,
+                pose: {}
+            },
+            {
+                // Slide right
+                time: 0.7,
+                pose: {
+                    head:      { x: 30, y: 5 },
+                    neck:      { x: 28, y: 4 },
+                    leftShoulder:  { x: 25, y: 3 },
+                    rightShoulder: { x: 25, y: 3 },
+                    leftElbow:     { x: 22, y: 2 },
+                    rightElbow:    { x: 22, y: 2 },
+                    leftHand:      { x: 20, y: 2 },
+                    rightHand:     { x: 20, y: 2 },
+                    hip:       { x: 25, y: 5 },
+                    leftKnee:  { x: 15, y: 8 },
+                    rightKnee: { x: 30, y: -5 },
+                    leftFoot:  { x: 10, y: 0 },
+                    rightFoot: { x: 40, y: 0 }
+                }
+            },
+            { time: 1.0, pose: {} }
+        ]
     }
 ];
 
