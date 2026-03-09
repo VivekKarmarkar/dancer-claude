@@ -5,3 +5,5 @@
 tmp/
 node_modules/
 __pycache__/
+venv/
+tools/pose_landmarker.task
