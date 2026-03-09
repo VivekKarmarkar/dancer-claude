@@ -22,11 +22,6 @@ export class AudioEngine {
 
         // Reusable typed array for frequency data
         this._frequencyData = null;
-
-        // Genre detection: track ratio of lowMid to bass energy over time
-        // Indian music: lowMid dominates (dhol/tabla). Western: bass dominates (kick).
-        this._styleHistory = [];   // rolling window of lowMid/bass ratios
-        this.styleScore = 0;       // 0 = Western, 1 = Indian (smoothed)
     }
 
     async init() {
@@ -196,44 +191,33 @@ export class AudioEngine {
         // Get frequency data (0-255 per bin, 1024 bins total)
         this.analyser.getByteFrequencyData(this._frequencyData);
 
-        // Split into frequency bands
-        // bass: bins 0-10 (low frequencies, kick drum)
+        // Split into 3 frequency bands
+        // bass: bins 0-20 (kick, bass guitar, low percussion)
         let bassSum = 0;
-        for (let i = 0; i <= 10; i++) {
+        for (let i = 0; i <= 20; i++) {
             bassSum += this._frequencyData[i];
         }
-        const bass = bassSum / (11 * 255);
+        const bass = bassSum / (21 * 255);
 
-        // lowMid: bins 10-40 (dhol, tabla, tasha — Indian percussion lives here)
-        let lowMidSum = 0;
-        for (let i = 10; i <= 40; i++) {
-            lowMidSum += this._frequencyData[i];
-        }
-        const lowMid = lowMidSum / (31 * 255);
-
-        // mid: bins 40-100 (vocals, melody)
+        // mid: bins 20-100 (vocals, melody, snare)
         let midSum = 0;
-        for (let i = 40; i <= 100; i++) {
+        for (let i = 20; i <= 100; i++) {
             midSum += this._frequencyData[i];
         }
-        const mid = midSum / (61 * 255);
+        const mid = midSum / (81 * 255);
 
-        // treble: bins 100-512 (hi-hats, cymbals, jhanjh)
+        // treble: bins 100-512 (hi-hats, cymbals, brightness)
         let trebleSum = 0;
         for (let i = 100; i <= 512; i++) {
             trebleSum += this._frequencyData[i];
         }
         const treble = trebleSum / (413 * 255);
 
-        // energy = balanced weighting that works for both Western and Indian music
-        // bass + lowMid together capture both kick drums AND dhol/tabla
-        const energy = bass * 0.3 + lowMid * 0.3 + mid * 0.25 + treble * 0.15;
+        // Overall energy — bass-weighted for better beat response
+        const energy = bass * 0.45 + mid * 0.35 + treble * 0.2;
 
-        // Multi-band beat detection: detect beats in bass OR lowMid band
-        // This catches both kick-drum beats (Western) and dhol/tasha hits (Indian)
-        const percussionEnergy = Math.max(bass, lowMid);
-
-        this.energyHistory.push(percussionEnergy);
+        // Beat detection: bass spike above rolling average
+        this.energyHistory.push(bass);
         if (this.energyHistory.length > 30) {
             this.energyHistory.shift();
         }
@@ -244,10 +228,9 @@ export class AudioEngine {
         }
         avgEnergy /= this.energyHistory.length;
 
-        // Beat detection: spike in percussion bands above threshold AND cooldown elapsed
         const currentTime = this.audioContext ? this.audioContext.currentTime : 0;
         const isBeat =
-            percussionEnergy > avgEnergy * this.beatThreshold &&
+            bass > avgEnergy * this.beatThreshold &&
             (currentTime - this.lastBeatTime) > this.beatCooldown &&
             this.energyHistory.length >= 5;
 
@@ -255,30 +238,7 @@ export class AudioEngine {
             this.lastBeatTime = currentTime;
         }
 
-        // Genre/style detection:
-        // Indian percussion (dhol, tabla, tasha) has strong lowMid energy relative to bass.
-        // Western percussion (kick drum, 808) has strong bass relative to lowMid.
-        // Also: Indian music tends to have more prominent mid (vocals, sitar, harmonium).
-        // Compute a style ratio and smooth it over time.
-        const bassTotal = bass + 0.001; // avoid division by zero
-        const styleRatio = lowMid / bassTotal; // >1 = Indian-leaning, <1 = Western-leaning
-        // Also factor in mid-range prominence (Indian music is mid-heavy)
-        const midProminence = mid / (bass + lowMid + 0.001);
-
-        // Combine: higher values = more Indian-sounding
-        const rawStyle = Math.min(1, (styleRatio - 0.5) * 0.6 + midProminence * 0.4);
-
-        this._styleHistory.push(rawStyle);
-        if (this._styleHistory.length > 120) this._styleHistory.shift(); // ~2 seconds of history
-
-        // Smooth: average over the window
-        let styleSum = 0;
-        for (let i = 0; i < this._styleHistory.length; i++) {
-            styleSum += this._styleHistory[i];
-        }
-        this.styleScore = styleSum / this._styleHistory.length;
-
-        return { energy, bass, lowMid, mid, treble, isBeat, styleScore: this.styleScore };
+        return { energy, bass, mid, treble, isBeat };
     }
 
     getMediaStreamDestination() {

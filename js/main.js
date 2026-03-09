@@ -6,13 +6,6 @@ import { StylizedTheme } from './themes/stylized.js';
 import { WildTheme } from './themes/wild.js';
 import { VideoExporter } from './video-exporter.js';
 
-const PRESETS = [
-    { name: 'Upbeat Dance', file: 'audio/upbeat-dance.mp3' },
-    { name: 'Chill Groove', file: 'audio/chill-groove.mp3' },
-    { name: 'High Energy', file: 'audio/high-energy.mp3' },
-    { name: 'Funky Beat', file: 'audio/funky-beat.mp3' },
-];
-
 class DancerApp {
     constructor() {
         this.canvas = document.getElementById('dance-floor');
@@ -33,7 +26,6 @@ class DancerApp {
         this.isRecordingFullSong = false;
 
         this._bindUI();
-        this._generatePresetButtons();
         this._animate();
     }
 
@@ -176,29 +168,14 @@ class DancerApp {
         });
     }
 
-    _generatePresetButtons() {
-        const container = document.querySelector('.preset-buttons');
-        if (!container) return;
-
-        PRESETS.forEach(preset => {
-            const btn = document.createElement('button');
-            btn.className = 'preset-btn';
-            btn.textContent = preset.name;
-            btn.addEventListener('click', () => {
-                this.loadSong(preset.file, preset.name);
-            });
-            container.appendChild(btn);
-        });
-    }
-
-    async loadSong(urlOrFile, name) {
+    async loadSong(file, name) {
         try {
             await this.audio.init();
-            await this.audio.loadAudio(urlOrFile);
+            await this.audio.loadAudio(file);
         } catch (err) {
             console.error('Failed to load audio:', err);
             document.querySelector('.now-playing').textContent =
-                `Failed to load "${name}". Try uploading a file instead.`;
+                `Failed to load "${name}".`;
             return;
         }
 

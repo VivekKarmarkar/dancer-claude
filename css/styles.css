@@ -114,41 +114,6 @@ header h1 {
   margin-bottom: 1.5rem;
 }
 
-.preset-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  min-height: 2rem;
-}
-
-.preset-btn {
-  background: #16213e;
-  color: #ccccdd;
-  border: 1px solid #2a2a4a;
-  padding: 0.4rem 1rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.preset-btn:hover {
-  background: #1f2f50;
-  border-color: #6c5ce7;
-}
-
-.preset-btn.active {
-  background: #6c5ce7;
-  border-color: #6c5ce7;
-  color: #ffffff;
-}
-
-.divider {
-  border: none;
-  border-top: 1px solid #2a2a4a;
-  margin: 1rem 0;
-}
-
 .upload-label {
   display: inline-block;
   background: #16213e;

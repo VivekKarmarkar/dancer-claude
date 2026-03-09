@@ -1,4 +1,4 @@
-import { getAllMoves, getMovesByEnergy, getStyledMoves } from './moves.js';
+import { getAllMoves, getMovesByEnergy } from './moves.js';
 import { Skeleton, JOINTS } from './skeleton.js';
 
 // Joints belonging to upper vs lower body for layered movement
@@ -25,9 +25,6 @@ export class MoveSequencer {
         this.grooveIntensity = 0;     // smoothed, ramps up with energy
         this.lastBeatTime = 0;
         this.beatInterval = 0.5;      // seconds between beats (60/bpm)
-
-        // Style awareness
-        this.styleScore = 0;          // 0 = Western, 1 = Indian (from audio engine)
 
         // Dynamic amplitude — scales move deltas by energy
         this.amplitudeScale = 1.0;
@@ -79,16 +76,11 @@ export class MoveSequencer {
         // Smooth energy tracking
         this.energy += (analysis.energy - this.energy) * 0.12;
 
-        // Track music style
-        if (analysis.styleScore !== undefined) {
-            this.styleScore += (analysis.styleScore - this.styleScore) * 0.05;
-        }
-
         // Dynamic amplitude: quiet = 0.5x, normal = 1x, loud = 1.4x
         const targetAmp = 0.5 + this.energy * 0.9;
         this.amplitudeScale += (targetAmp - this.amplitudeScale) * 0.08;
 
-        // BPM estimation
+        // BPM estimation from detected beats
         if (analysis.isBeat) {
             this.beatCount++;
             this.beatTimes.push(currentTime);
@@ -212,41 +204,24 @@ export class MoveSequencer {
         const phase = this.groovePhase;
         const bounceCurve = Math.max(0, Math.cos(phase * Math.PI * 2) * Math.exp(-phase * 3));
 
-        // Indian music gets a HEAVIER, more grounded groove
-        // Western gets a lighter, bouncier feel
-        const indianFactor = this.styleScore; // 0..1
-        const baseBounce = 12 + indianFactor * 8; // 12px Western, up to 20px Indian
-        const bounceAmount = this.grooveIntensity * baseBounce * this.amplitudeScale;
-
+        const bounceAmount = this.grooveIntensity * 12 * this.amplitudeScale;
         const dip = bounceCurve * bounceAmount;
-
-        // Indian groove: more hip sway side-to-side on alternating beats
-        const hipSway = indianFactor * Math.sin(this.groovePhase * Math.PI * 2 + this.beatCount * Math.PI) * 10 * this.grooveIntensity;
 
         for (const joint of JOINTS) {
             pose[joint].y += dip;
         }
 
-        // Hip sway (stronger for Indian music)
-        pose.hip.x += hipSway;
-        pose.leftKnee.x += hipSway * 0.5;
-        pose.rightKnee.x += hipSway * 0.5;
-        // Head counter-sways slightly for that Indian head movement feel
-        pose.head.x -= hipSway * 0.3;
-        pose.neck.x -= hipSway * 0.15;
-
         // Knees bend outward on the dip
-        const kneeBend = bounceCurve * this.grooveIntensity * (6 + indianFactor * 4);
+        const kneeBend = bounceCurve * this.grooveIntensity * 6;
         pose.leftKnee.x -= kneeBend;
         pose.rightKnee.x += kneeBend;
         pose.leftKnee.y -= kneeBend * 0.5;
         pose.rightKnee.y -= kneeBend * 0.5;
 
-        // Shoulders: subtle counter-bounce for Western, shimmy undertone for Indian
+        // Shoulders: subtle counter-bounce
         const shoulderBounce = bounceCurve * this.grooveIntensity * 3;
-        const shoulderShimmy = indianFactor * Math.sin(phase * Math.PI * 6) * 4 * this.grooveIntensity;
-        pose.leftShoulder.y -= shoulderBounce + shoulderShimmy;
-        pose.rightShoulder.y -= shoulderBounce - shoulderShimmy;
+        pose.leftShoulder.y -= shoulderBounce;
+        pose.rightShoulder.y -= shoulderBounce;
     }
 
     _getLayerDelta(layer) {
@@ -303,7 +278,6 @@ export class MoveSequencer {
 
     // Spring-like easing: overshoots slightly then settles
     _springEase(t) {
-        // Attempt a slight overshoot for natural momentum
         const c4 = (2 * Math.PI) / 4.5;
         if (t <= 0) return 0;
         if (t >= 1) return 1;
@@ -404,8 +378,7 @@ export class MoveSequencer {
             energyLevel = 'high';
         }
 
-        // Style-aware move selection: prefer moves matching the detected genre
-        let candidates = getStyledMoves(energyLevel, this.styleScore);
+        let candidates = getMovesByEnergy(energyLevel);
 
         // Filter by type if specified
         if (typeFilter) {
