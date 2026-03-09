@@ -10,7 +10,6 @@ the audio in a pygame window.
 """
 
 import bisect
-import math
 import os
 import subprocess
 import sys
@@ -224,7 +223,6 @@ def landmarks_to_pose(landmarks, img_w: int, img_h: int):
     min_y, max_y = min(ys), max(ys)
 
     bbox_h = max_y - min_y
-    bbox_w = max_x - min_x
 
     if bbox_h < 1:
         return None
@@ -288,7 +286,6 @@ def extract_poses(video_path: str):
     poses = []
     last_valid_pose = None
     frame_idx = 0
-    sampled = 0
 
     while True:
         ret, frame = cap.read()
@@ -319,8 +316,6 @@ def extract_poses(video_path: str):
             if pose is not None:
                 poses.append((time_s, pose))
 
-            sampled += 1
-
             # Progress
             pct = int((frame_idx + 1) / total_frames * 100)
             print(f"\r  Learning choreography... {pct}%", end="", flush=True)
@@ -340,16 +335,15 @@ def extract_poses(video_path: str):
 # 6. find_pose_at — binary search + linear interpolation
 # ---------------------------------------------------------------------------
 
-def find_pose_at(poses, time: float):
+def find_pose_at(poses, times, time: float):
     """Return an interpolated pose dict for the given *time* (seconds).
 
     Uses binary search to find the surrounding keyframes and linearly
     interpolates between them (with smoothstep easing, matching the JS).
+    *times* is a pre-extracted list of timestamps (avoids rebuilding per frame).
     """
     if not poses:
         return None
-
-    times = [p[0] for p in poses]
 
     # bisect_right gives us the index of the first element > time
     idx = bisect.bisect_right(times, time)
@@ -427,6 +421,7 @@ def play(poses, audio_path: str):
         return
 
     duration = poses[-1][0]
+    times = [p[0] for p in poses]  # pre-extract for fast binary search
     print(f"\n\u266a Playing... ({len(poses)} poses, {duration:.1f}s)")
 
     pygame.init()
@@ -462,7 +457,7 @@ def play(poses, audio_path: str):
         current_time = music_pos_ms / 1000.0
 
         # Look up interpolated pose
-        pose = find_pose_at(poses, current_time)
+        pose = find_pose_at(poses, times, current_time)
 
         # Draw
         screen.fill(BLACK)
