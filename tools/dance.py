@@ -389,44 +389,56 @@ def find_pose_at(poses, times, time: float):
 # 7. draw_skeleton — render stick figure on pygame surface
 # ---------------------------------------------------------------------------
 
-def draw_skeleton(screen, pose):
-    """Draw white stick figure on *screen* from *pose* dict."""
+def draw_skeleton(screen, pose, color=(255, 255, 255)):
+    """Draw stick figure on *screen* from *pose* dict."""
     if pose is None:
         return
-
-    WHITE = (255, 255, 255)
 
     # Draw bones
     for joint_a, joint_b in BONES:
         a = pose.get(joint_a)
         b = pose.get(joint_b)
         if a is not None and b is not None:
-            pygame.draw.line(screen, WHITE, (int(a[0]), int(a[1])),
+            pygame.draw.line(screen, color, (int(a[0]), int(a[1])),
                              (int(b[0]), int(b[1])), 3)
 
     # Draw head circle
     head = pose.get("head")
     if head is not None:
-        pygame.draw.circle(screen, WHITE, (int(head[0]), int(head[1])), 15, 3)
+        pygame.draw.circle(screen, color, (int(head[0]), int(head[1])), 15, 3)
 
 
 # ---------------------------------------------------------------------------
 # 8. play — pygame audio + animation loop
 # ---------------------------------------------------------------------------
 
-def play(poses, audio_path: str):
-    """Play back the stick figure animation synced to audio."""
+def play(poses, audio_path: str, video_path: str = None):
+    """Play back the stick figure animation synced to audio.
+
+    If *video_path* is provided, renders the video as background with the
+    skeleton overlaid in green (for validation/testing).
+    """
     if not poses:
         print("No poses to play.")
         return
 
+    overlay = video_path is not None
     duration = poses[-1][0]
     times = [p[0] for p in poses]  # pre-extract for fast binary search
-    print(f"\n\u266a Playing... ({len(poses)} poses, {duration:.1f}s)")
+
+    # Open video for overlay mode
+    cap = None
+    video_fps = 30
+    if overlay:
+        cap = cv2.VideoCapture(video_path)
+        video_fps = cap.get(cv2.CAP_PROP_FPS) or 30
+
+    mode_label = "overlay" if overlay else "skeleton"
+    print(f"\n\u266a Playing ({mode_label})... ({len(poses)} poses, {duration:.1f}s)")
 
     pygame.init()
     screen = pygame.display.set_mode((CANVAS_W, CANVAS_H))
-    pygame.display.set_caption("Dance Choreography")
+    pygame.display.set_caption("Dance Choreography" + (" [OVERLAY]" if overlay else ""))
     clock = pygame.time.Clock()
 
     pygame.mixer.init()
@@ -434,6 +446,8 @@ def play(poses, audio_path: str):
     pygame.mixer.music.play()
 
     BLACK = (0, 0, 0)
+    GREEN = (0, 255, 0)
+    skeleton_color = GREEN if overlay else (255, 255, 255)
     running = True
 
     while running:
@@ -456,17 +470,34 @@ def play(poses, audio_path: str):
             continue
         current_time = music_pos_ms / 1000.0
 
-        # Look up interpolated pose
-        pose = find_pose_at(poses, times, current_time)
+        # Draw background
+        if overlay and cap is not None:
+            # Seek video to current time
+            target_frame = int(current_time * video_fps)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+            ret, frame = cap.read()
+            if ret:
+                # Convert BGR→RGB, resize to canvas, render
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame = cv2.resize(frame, (CANVAS_W, CANVAS_H))
+                # numpy array → pygame surface (swap axes: HxWx3 → WxHx3)
+                surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+                screen.blit(surface, (0, 0))
+            else:
+                screen.fill(BLACK)
+        else:
+            screen.fill(BLACK)
 
-        # Draw
-        screen.fill(BLACK)
-        draw_skeleton(screen, pose)
+        # Look up interpolated pose and draw
+        pose = find_pose_at(poses, times, current_time)
+        draw_skeleton(screen, pose, skeleton_color)
         pygame.display.flip()
 
         clock.tick(FPS)
 
     pygame.mixer.music.stop()
+    if cap is not None:
+        cap.release()
     pygame.quit()
 
 
@@ -475,11 +506,16 @@ def play(poses, audio_path: str):
 # ---------------------------------------------------------------------------
 
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <youtube-url-or-local-video>", file=sys.stderr)
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = [a for a in sys.argv[1:] if a.startswith("--")]
+    overlay = "--overlay" in flags
+
+    if not args:
+        print(f"Usage: {sys.argv[0]} [--overlay] <youtube-url-or-local-video>",
+              file=sys.stderr)
         sys.exit(1)
 
-    source = sys.argv[1]
+    source = args[0]
     temp_files = []
 
     try:
@@ -495,8 +531,8 @@ def main():
         # Step 3: extract poses
         poses = extract_poses(video_path)
 
-        # Step 4: play
-        play(poses, audio_path)
+        # Step 4: play (pass video_path for overlay mode)
+        play(poses, audio_path, video_path=video_path if overlay else None)
 
     finally:
         # Clean up temp files
