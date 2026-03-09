@@ -245,9 +245,7 @@ def landmarks_to_pose(landmarks, img_w: int, img_h: int):
             cy_dst + (py - cy_src) * scale,
         )
 
-    # Fill missing joints with None (we'll handle in interpolation/draw)
-    # Actually, for simplicity, only return if we have enough joints
-    return pose
+    return pose, raw
 
 
 # ---------------------------------------------------------------------------
@@ -257,7 +255,10 @@ def landmarks_to_pose(landmarks, img_w: int, img_h: int):
 def extract_poses(video_path: str):
     """Open video, sample frames at SAMPLE_FPS, detect poses.
 
-    Returns list of ``(time_seconds, pose_dict)`` tuples.
+    Returns ``(poses, raw_poses)`` where each is a list of
+    ``(time_seconds, pose_dict)`` tuples.  *poses* are normalized/centered
+    on the canvas; *raw_poses* are in video pixel coordinates scaled to
+    the canvas dimensions (for overlay validation).
     """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -284,7 +285,8 @@ def extract_poses(video_path: str):
     landmarker = mp_vision.PoseLandmarker.create_from_options(options)
 
     poses = []
-    last_valid_pose = None
+    raw_poses = []
+    last_valid = None  # (pose, raw)
     frame_idx = 0
 
     while True:
@@ -302,19 +304,26 @@ def extract_poses(video_path: str):
 
             result = landmarker.detect(mp_image)
 
-            pose = None
+            extracted = None
             if result.pose_landmarks:
                 best_lm = pick_largest_skeleton(result.pose_landmarks, img_w, img_h)
                 if best_lm is not None:
-                    pose = landmarks_to_pose(best_lm, img_w, img_h)
+                    extracted = landmarks_to_pose(best_lm, img_w, img_h)
 
-            if pose is not None:
-                last_valid_pose = pose
-            elif last_valid_pose is not None:
-                pose = last_valid_pose
+            if extracted is not None:
+                pose, raw = extracted
+                # Scale raw pixel coords to canvas dimensions
+                sx, sy = CANVAS_W / img_w, CANVAS_H / img_h
+                raw_scaled = {j: (x * sx, y * sy) for j, (x, y) in raw.items()}
+                last_valid = (pose, raw_scaled)
+            elif last_valid is not None:
+                pose, raw_scaled = last_valid
+            else:
+                pose = raw_scaled = None
 
             if pose is not None:
                 poses.append((time_s, pose))
+                raw_poses.append((time_s, raw_scaled))
 
             # Progress
             pct = int((frame_idx + 1) / total_frames * 100)
@@ -328,7 +337,7 @@ def extract_poses(video_path: str):
     landmarker.close()
 
     print(f"  Learned {len(poses)} poses from {duration:.1f}s of video")
-    return poses
+    return poses, raw_poses
 
 
 # ---------------------------------------------------------------------------
@@ -412,11 +421,11 @@ def draw_skeleton(screen, pose, color=(255, 255, 255)):
 # 8. play — pygame audio + animation loop
 # ---------------------------------------------------------------------------
 
-def play(poses, audio_path: str, video_path: str = None):
+def play(poses, audio_path: str, video_path: str = None, raw_poses=None):
     """Play back the stick figure animation synced to audio.
 
-    If *video_path* is provided, renders the video as background with the
-    skeleton overlaid in green (for validation/testing).
+    If *video_path* is provided, renders the video as background with two
+    skeletons: green (raw, superimposed on dancer) and cyan (normalized).
     """
     if not poses:
         print("No poses to play.")
@@ -425,6 +434,7 @@ def play(poses, audio_path: str, video_path: str = None):
     overlay = video_path is not None
     duration = poses[-1][0]
     times = [p[0] for p in poses]  # pre-extract for fast binary search
+    raw_times = [p[0] for p in raw_poses] if raw_poses else None
 
     # Open video for overlay mode
     cap = None
@@ -447,7 +457,8 @@ def play(poses, audio_path: str, video_path: str = None):
 
     BLACK = (0, 0, 0)
     GREEN = (0, 255, 0)
-    skeleton_color = GREEN if overlay else (255, 255, 255)
+    CYAN = (0, 255, 255)
+    WHITE = (255, 255, 255)
     running = True
 
     while running:
@@ -490,7 +501,14 @@ def play(poses, audio_path: str, video_path: str = None):
 
         # Look up interpolated pose and draw
         pose = find_pose_at(poses, times, current_time)
-        draw_skeleton(screen, pose, skeleton_color)
+        if overlay and raw_poses:
+            # Green: raw skeleton superimposed on dancer
+            raw_pose = find_pose_at(raw_poses, raw_times, current_time)
+            draw_skeleton(screen, raw_pose, GREEN)
+            # Cyan: normalized skeleton (what the audience sees)
+            draw_skeleton(screen, pose, CYAN)
+        else:
+            draw_skeleton(screen, pose, WHITE)
         pygame.display.flip()
 
         clock.tick(FPS)
@@ -529,10 +547,12 @@ def main():
         temp_files.append(audio_path)
 
         # Step 3: extract poses
-        poses = extract_poses(video_path)
+        poses, raw_poses = extract_poses(video_path)
 
-        # Step 4: play (pass video_path for overlay mode)
-        play(poses, audio_path, video_path=video_path if overlay else None)
+        # Step 4: play (pass video_path + raw_poses for overlay mode)
+        play(poses, audio_path,
+             video_path=video_path if overlay else None,
+             raw_poses=raw_poses if overlay else None)
 
     finally:
         # Clean up temp files
