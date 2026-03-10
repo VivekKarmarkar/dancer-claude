@@ -1,137 +1,100 @@
 # Project Roadmap: Dancer Claude
 
-> **Created:** 2026-03-09
-> **Status:** Draft
+> **Updated:** 2026-03-10
 
 ## Vision
-A stick figure that doesn't just dance to any song — it *recognizes* songs it's learned before, reacts like a human would ("Oh I know this one!"), and switches from freestyle to memorized choreography. The dream: upload a song, the figure listens for a few seconds, gets excited, and nails the exact moves from the music video.
 
-## Current State
-- **Working:** Browser-based real-time dance engine (23 moves, 3 themes, beat detection, video recording)
-- **Working:** Python choreography engine (`tools/dance.py`) — takes a YouTube URL, extracts poses via MediaPipe, plays back a stick figure dancing to the audio in pygame
-- **Working:** Overlay validation mode (dual skeleton on video)
-- **Not yet built:** Song recognition, choreography library, reaction system, browser integration of extracted choreography
+A stick figure that doesn't just dance to any song — it *recognizes* songs it's learned before and switches from freestyle to memorized choreography. You just upload a song. The figure figures it out. Known song? It snaps into the real moves. Unknown? It freestyles. It stops feeling like a tool with two modes and starts feeling like a character with a memory.
 
 ---
 
-## Phase 1: Choreography Library — Build the Memory
-**Goal:** Create a persistent library of pre-extracted choreographies so the system has songs to "remember"
-**Status:** Not Started
+## Level 1: Freestyle — DONE
 
-| Priority | Task | Description | Dependencies |
-|----------|------|-------------|-------------|
-| P0 | Choreography export format | Define a JSON format for extracted poses (song metadata + timestamped joint positions) | — |
-| P0 | Export command | `python3 tools/dance.py --export <url>` saves poses to `library/<fingerprint>.json` | Export format |
-| P0 | Library index | `library/index.json` mapping song fingerprints → choreography files + metadata (title, artist, duration) | Export format |
-| P1 | Batch extraction | `python3 tools/dance.py --batch urls.txt` processes a list of YouTube URLs into the library | Export command |
-| P1 | Agentic video finder | Agent team that takes a song name → searches YouTube → picks the best dance video → extracts choreography | Batch extraction |
-| P2 | Quality scoring | Auto-rate extraction quality (% frames with valid poses, skeleton stability) so bad extractions get flagged | Export command |
+Upload any song, the stick figure improvises in real-time based on beat detection.
 
-**Exit criteria:**
-- [ ] Library contains 5+ songs with extracted choreographies
-- [ ] `--export` produces a loadable JSON file
-- [ ] Index file is auto-updated on each export
+- 23 hand-crafted dance moves
+- Layered upper/lower body movement
+- Groove system with beat-synced bounce
+- Dynamic amplitude scaling
+- 3 visual themes (Minimal, Stylized, Wild)
+- Video recording (clips + full song)
 
 ---
 
-## Phase 2: Audio Fingerprinting — Teach it to Listen
-**Goal:** The system can identify a playing song within 3-5 seconds by comparing against its library
-**Status:** Not Started
+## Level 2: Direct Recall — DONE
 
-| Priority | Task | Description | Dependencies |
-|----------|------|-------------|-------------|
-| P0 | Audio fingerprint generation | Generate a compact fingerprint from audio (chromaprint/fpcalc or similar) during export | Phase 1 export |
-| P0 | Fingerprint matching | Compare live audio fingerprint against library fingerprints, return match + confidence | Fingerprint generation |
-| P1 | Browser-side fingerprinting | Port fingerprint comparison to JS (Web Audio API spectral analysis) for real-time matching | Fingerprint matching |
-| P1 | Partial match from first N seconds | Match using only the first 3-5 seconds of audio, not the whole song | Fingerprint matching |
-| P2 | Fuzzy matching | Handle different recordings/remixes of the same song (covers, live versions) | Partial match |
+Pick a pre-learned song from a dropdown, the stick figure performs the exact choreography extracted from a YouTube dance video.
 
-**Exit criteria:**
-- [ ] System correctly identifies a known song within 5 seconds of playback
-- [ ] False positive rate < 5% on unknown songs
-- [ ] Works in both Python (pygame) and browser (Web Audio API)
+- `tools/dance.py` — YouTube → MediaPipe pose extraction → normalized JSON + synced MP3
+- 10-song library (YMCA, Macarena, Gangnam Style, Toxic, etc.)
+- `PosePlayer` module — O(1) frame lookup, smoothstep interpolation at 60fps
+- Freestyle/Choreographed mode toggle in the browser UI
+- Themes stay reactive to the beat in both modes
+- All existing controls (pause, seek, record) work in choreo mode
 
 ---
 
-## Phase 3: The Reaction — Make it Feel Human
-**Goal:** When the figure recognizes a song, it visibly reacts before switching to choreography
-**Status:** Not Started
+## Level 3: Song Recognition — NEXT
 
-| Priority | Task | Description | Dependencies |
-|----------|------|-------------|-------------|
-| P0 | Recognition jump | Stick figure does an excited jump when it identifies the song | Phase 2 matching |
-| P0 | Thought bubble | Speech/thought bubble appears with song name + artist (e.g., "Oh! Thriller — MJ!") | Recognition jump |
-| P0 | Freestyle → choreography transition | Smooth blend from random freestyle moves to the memorized choreography | Phase 1 library, Phase 2 matching |
-| P1 | "Confused" state | When song is NOT recognized, figure looks around/shrugs — subtle "I don't know this one" animation | Recognition jump |
-| P1 | Timeline sync | After recognition, sync choreography to current position in the song (not start from beat 0) | Freestyle → choreo transition |
-| P2 | Anticipation moves | If figure "almost" recognizes a song (low confidence), show thinking/head-tilting animation | Fuzzy matching |
+**The show-stopper.** No more manual mode switching. Upload any song — the figure starts freestyling, listens for a few seconds, and if it recognizes the song, it reacts ("Oh I know this one!") and snaps into the learned choreography. Unknown songs just keep freestyling.
 
-**Exit criteria:**
-- [ ] Visible reaction within 1 second of recognition
-- [ ] Thought bubble renders cleanly in all 3 themes
-- [ ] Transition from freestyle to choreography is smooth (no jarring pose snap)
-- [ ] Unknown songs produce a distinct "confused" reaction, then continue freestyle
+This is the level that makes the project feel *integrated* — Freestyle and Choreographed merge into one seamless experience. The figure becomes a character with a memory, not a tool with two tabs.
 
----
+**Key challenges:**
+- Audio fingerprinting — match an uploaded song against the library within 3-5 seconds
+- Freestyle → choreography transition — smooth blend, no jarring pose snap
+- Timeline sync — after recognition, join the choreography at the right beat, not from the start
+- Reaction animation — the excited recognition moment that sells the whole thing
+- Confidence thresholds — wrong match is worse than no match
 
-## Phase 4: Browser Integration — Bring it Home
-**Goal:** Wire the choreography playback and recognition into the existing browser app
-**Status:** Not Started
-
-| Priority | Task | Description | Dependencies |
-|----------|------|-------------|-------------|
-| P0 | Pose player JS module | `js/pose-player.js` that loads choreography JSON and drives the skeleton | Phase 1 export format |
-| P0 | Mode switching | Live switching between freestyle (current engine) and choreography (pose player) mid-song | Pose player |
-| P0 | Theme compatibility | Choreography playback works with Minimal, Stylized, and Wild themes | Pose player |
-| P1 | Library browser UI | Simple UI to see which songs are in the library, preview choreographies | Library index |
-| P1 | Recognition indicator | Visual indicator showing "Listening...", "Recognized!", or "New song — freestyling" | Phase 3 reactions |
-| P2 | Video recording of choreography | Existing video exporter works with choreography playback, not just freestyle | Mode switching |
-
-**Exit criteria:**
-- [ ] Known song plays → recognition reaction → memorized choreography in browser
-- [ ] Unknown song plays → freestyle dancing (existing behavior)
-- [ ] All 3 themes render choreography correctly
-- [ ] Video recording captures both modes
+**What "done" looks like:**
+- Upload YMCA → figure freestyles for a few seconds → recognition reaction → performs the Macarena choreography
+- Upload an unknown song → figure freestyles the whole time, no false triggers
+- The transition moment feels magical, not mechanical
 
 ---
 
-## Phase 5: Scale & Polish
-**Goal:** Grow the library, improve recognition speed, polish the experience
-**Status:** Not Started
+## Level 4: Move Mining — FUTURE
 
-| Priority | Task | Description | Dependencies |
-|----------|------|-------------|-------------|
-| P0 | 20+ song library | Curated set of iconic dance songs with high-quality extractions | Agentic video finder |
-| P1 | Sub-3-second recognition | Optimize fingerprinting for faster identification | Browser fingerprinting |
-| P1 | Choreography quality filter | Auto-skip low-quality extractions, fall back to freestyle for bad segments | Quality scoring |
-| P2 | Social sharing format | 9:16 vertical video export for Shorts/Reels/TikTok | Video recording |
-| P2 | Community library | Shareable choreography packs others can import | Export format |
+Extract individual moves from the choreography library to expand the freestyle vocabulary. Instead of 23 hand-crafted moves, the system learns new moves from what it's watched.
 
-**Exit criteria:**
-- [ ] 20+ songs recognized reliably
-- [ ] Average recognition time < 3 seconds
-- [ ] End-to-end demo: upload unknown song → freestyle; upload known song → recognize + choreography
+**The hard problem:** A choreography is a continuous stream of joint positions with no labels. You have to figure out where one move ends and another begins, then decide what's a distinct move vs. a variation.
+
+**Approaches to explore:**
+- **Segmentation** — velocity minima (moments where the body is relatively still) as natural move boundaries
+- **Clustering** — group similar segments across songs (DTW / dynamic time warping for pose sequence similarity)
+- **Decomposition** — split full-body segments into upper/lower body moves to match the freestyle engine's layering system
+
+**What "done" looks like:**
+- Feed in 10 choreographies, get back 15-30 distinct new moves
+- New moves plug into the freestyle sequencer and look natural
+- The freestyle vocabulary grows with every YouTube video fed into the system
 
 ---
 
-## Risks & Mitigations
+## Level 5: Scale & Polish — FUTURE
 
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|-----------|-----------|
-| Audio fingerprinting too slow in browser | High | Medium | Pre-compute fingerprints server-side, ship compact comparison data to browser |
-| MediaPipe extraction quality varies wildly across videos | High | High | Quality scoring + manual curation; fall back to freestyle for bad segments |
-| YouTube videos get taken down (library depends on URLs) | Medium | High | Store extracted poses locally, not URLs; the choreography survives the video |
-| Song recognition false positives (wrong choreography) | High | Low | Require high confidence threshold; "confused" state as default |
-| Transition from freestyle to choreography looks jarring | Medium | Medium | Smoothstep interpolation over 0.5-1s; match body position before switching |
+- 20+ song library with curated high-quality extractions
+- Sub-3-second recognition
+- Agentic video finder (song name → YouTube search → best dance video → auto-extraction)
+- Social sharing (9:16 vertical video for Shorts/Reels/TikTok)
+- Quality scoring for extractions (auto-flag bad tracking)
+
+---
+
+## Risks
+
+| Risk | Mitigation |
+|------|-----------|
+| Audio fingerprinting too slow in browser | Pre-compute fingerprints at export time, ship compact comparison data |
+| Song recognition false positives | High confidence threshold; default to freestyle when uncertain |
+| Freestyle → choreography transition looks jarring | Smoothstep interpolation over 0.5-1s; match body position before switching |
+| MediaPipe extraction quality varies across videos | Quality scoring + manual curation; solo dancer + clean background = best results |
+| Move segmentation produces garbage clusters | Start small, eyeball results, iterate — this is a research problem with a fast feedback loop |
 
 ## Open Questions
-- Which audio fingerprinting library? chromaprint (C, battle-tested) vs. pure JS solution vs. spectral hash approach
-- Should the library be committed to the repo or stored externally (too large for git)?
-- How to handle songs with multiple popular choreographies (e.g., different TikTok dances to the same song)?
-- Should recognition happen in Python (server-side) or JavaScript (client-side) or both?
 
-## Out of Scope
-- AI-generated choreography (making up new dances) — this is about *remembering* real dances
-- Music identification services (Shazam API) — we build our own matching against our library only
-- Multi-figure choreography (group dances) — single stick figure for now
-- Real-time pose extraction from webcam — extraction is offline only
+- Which audio fingerprinting approach? chromaprint (C, battle-tested) vs. spectral hashing in JS vs. something else
+- Should recognition happen client-side (Web Audio API) or involve a server?
+- How to handle multiple choreographies for the same song (different TikTok dances)?
+- What's the right confidence threshold for recognition — too low = false positives, too high = misses?
