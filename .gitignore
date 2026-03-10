@@ -7,3 +7,8 @@ node_modules/
 __pycache__/
 venv/
 tools/pose_landmarker.task
+
+# Output videos and media
+*.mp4
+*.webm
+*.png

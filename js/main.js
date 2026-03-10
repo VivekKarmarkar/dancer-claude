@@ -5,6 +5,7 @@ import { MinimalTheme } from './themes/minimal.js';
 import { StylizedTheme } from './themes/stylized.js';
 import { WildTheme } from './themes/wild.js';
 import { VideoExporter } from './video-exporter.js';
+import { PosePlayer } from './pose-player.js';
 
 class DancerApp {
     constructor() {
@@ -24,6 +25,8 @@ class DancerApp {
         this.exporter = null;
         this.isRecording = false;
         this.isRecordingFullSong = false;
+        this.mode = 'freestyle';
+        this.posePlayer = new PosePlayer();
 
         this._bindUI();
         this._animate();
@@ -53,6 +56,35 @@ class DancerApp {
 
                 this.currentTheme = newTheme;
             });
+        });
+
+        // MODE TOGGLE
+        const modeButtons = document.querySelectorAll('[data-mode]');
+        const freestylePanel = document.getElementById('freestyle-panel');
+        const choreoPanel = document.getElementById('choreo-panel');
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.mode = btn.dataset.mode;
+
+                freestylePanel.style.display = this.mode === 'freestyle' ? '' : 'none';
+                choreoPanel.style.display = this.mode === 'choreo' ? '' : 'none';
+
+                // Stop playback on mode switch
+                if (this.isPlaying) {
+                    this.audio.pause();
+                    this.isPlaying = false;
+                    document.getElementById('play-btn').textContent = 'Play';
+                }
+            });
+        });
+
+        // SONG SELECT (choreographed mode)
+        const songSelect = document.getElementById('song-select');
+        songSelect.addEventListener('change', () => {
+            const stem = songSelect.value;
+            if (stem) this.loadChoreography(stem);
         });
 
         // PLAY BUTTON
@@ -202,6 +234,41 @@ class DancerApp {
         }
     }
 
+    async loadChoreography(stem) {
+        try {
+            const meta = await this.posePlayer.load(`library/${stem}.json`);
+            await this.audio.init();
+            await this.audio.loadAudio(`library/${meta.audio}`);
+        } catch (err) {
+            console.error('Failed to load choreography:', err);
+            document.querySelector('.now-playing').textContent =
+                'Failed to load choreography.';
+            return;
+        }
+
+        // Reset sequencer so freestyle doesn't carry stale state
+        this.sequencer._initialized = false;
+        this.sequencer.moveStartTime = 0;
+        this.sequencer.moveProgress = 0;
+        this.sequencer.beatTimes = [];
+
+        // Update UI — show selected song name from the dropdown
+        const songSelect = document.getElementById('song-select');
+        const songName = songSelect.options[songSelect.selectedIndex].text;
+        document.querySelector('.now-playing').textContent = `Now playing: ${songName}`;
+        document.getElementById('play-btn').disabled = false;
+        document.getElementById('record-btn').disabled = false;
+        document.getElementById('record-full-btn').disabled = false;
+        this.songLoaded = true;
+
+        if (!this.isRecordingFullSong) {
+            this.audio.onEnded(() => {
+                this.isPlaying = false;
+                document.getElementById('play-btn').textContent = 'Play';
+            });
+        }
+    }
+
     _animate() {
         requestAnimationFrame(() => this._animate());
 
@@ -214,7 +281,12 @@ class DancerApp {
             this.sequencer.update(analysis, time);
         }
 
-        const pose = this.sequencer.getCurrentPose();
+        let pose;
+        if (this.mode === 'choreo' && this.posePlayer.isLoaded()) {
+            pose = this.posePlayer.getPoseAtTime(this.audio.getCurrentTime());
+        } else {
+            pose = this.sequencer.getCurrentPose();
+        }
 
         // Draw frame
         theme.drawBackground(this.ctx, this.canvas);

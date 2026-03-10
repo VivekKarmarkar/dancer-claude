@@ -10,6 +10,8 @@ the audio in a pygame window.
 """
 
 import bisect
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -421,11 +423,13 @@ def draw_skeleton(screen, pose, color=(255, 255, 255)):
 # 8. play — pygame audio + animation loop
 # ---------------------------------------------------------------------------
 
-def play(poses, audio_path: str, video_path: str = None, raw_poses=None):
+def play(poses, audio_path: str, video_path: str = None, raw_poses=None,
+         save_path: str = None):
     """Play back the stick figure animation synced to audio.
 
     If *video_path* is provided, renders the video as background with two
     skeletons: green (raw, superimposed on dancer) and cyan (normalized).
+    If *save_path* is provided, records the output to an mp4 file.
     """
     if not poses:
         print("No poses to play.")
@@ -444,12 +448,19 @@ def play(poses, audio_path: str, video_path: str = None, raw_poses=None):
         video_fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
     mode_label = "overlay" if overlay else "skeleton"
-    print(f"\n\u266a Playing ({mode_label})... ({len(poses)} poses, {duration:.1f}s)")
+    save_label = " → saving" if save_path else ""
+    print(f"\n\u266a Playing ({mode_label}{save_label})... ({len(poses)} poses, {duration:.1f}s)")
 
     pygame.init()
     screen = pygame.display.set_mode((CANVAS_W, CANVAS_H))
     pygame.display.set_caption("Dance Choreography" + (" [OVERLAY]" if overlay else ""))
     clock = pygame.time.Clock()
+
+    # Video writer for --save
+    writer = None
+    if save_path:
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        writer = cv2.VideoWriter(save_path, fourcc, FPS, (CANVAS_W, CANVAS_H))
 
     pygame.mixer.init()
     pygame.mixer.music.load(audio_path)
@@ -511,25 +522,96 @@ def play(poses, audio_path: str, video_path: str = None, raw_poses=None):
             draw_skeleton(screen, pose, WHITE)
         pygame.display.flip()
 
+        # Capture frame for video export
+        if writer is not None:
+            # pygame surface → numpy array (RGB) → BGR for OpenCV
+            frame_rgb = pygame.surfarray.array3d(screen)  # WxHx3
+            frame_bgr = cv2.cvtColor(frame_rgb.swapaxes(0, 1), cv2.COLOR_RGB2BGR)
+            writer.write(frame_bgr)
+
         clock.tick(FPS)
 
     pygame.mixer.music.stop()
+    if writer is not None:
+        writer.release()
+        print(f"Saved: {save_path}")
     if cap is not None:
         cap.release()
     pygame.quit()
 
 
 # ---------------------------------------------------------------------------
-# 9. main — CLI entry point
+# 9. export_poses — save pose timeseries as JSON
+# ---------------------------------------------------------------------------
+
+def export_choreography(poses, video_path: str, source: str, out_dir: str = None):
+    """Export time-synced pose timeseries + audio from the same video source.
+
+    Both are extracted from the same video, preserving temporal alignment.
+    Returns (json_path, audio_path).
+    """
+    from datetime import datetime, timezone
+    import shutil
+
+    if out_dir is None:
+        out_dir = os.path.join(os.path.dirname(__file__), "..", "library")
+    os.makedirs(out_dir, exist_ok=True)
+
+    # Generate filenames from URL hash
+    url_hash = hashlib.md5(source.encode()).hexdigest()[:8]
+    json_path = os.path.join(out_dir, f"choreo_{url_hash}.json")
+    audio_out = os.path.join(out_dir, f"choreo_{url_hash}.mp3")
+
+    # Extract audio from the same video the poses came from
+    tmp_audio = extract_audio(video_path)
+    shutil.move(tmp_audio, audio_out)
+    audio_kb = os.path.getsize(audio_out) / 1024
+    print(f"Audio: {audio_out} ({audio_kb:.0f}KB)")
+
+    # Write pose timeseries
+    duration = poses[-1][0] if poses else 0
+
+    data = {
+        "meta": {
+            "source": source,
+            "audio": f"choreo_{url_hash}.mp3",
+            "duration": round(duration, 2),
+            "poseCount": len(poses),
+            "sampleFps": SAMPLE_FPS,
+            "canvas": [CANVAS_W, CANVAS_H],
+            "exported": datetime.now(timezone.utc).isoformat(),
+        },
+        "poses": [
+            {
+                "t": round(t, 3),
+                "joints": {name: [round(x, 1), round(y, 1)]
+                           for name, (x, y) in pose.items()},
+            }
+            for t, pose in poses
+        ],
+    }
+
+    with open(json_path, "w") as f:
+        json.dump(data, f, separators=(",", ":"))
+
+    json_kb = os.path.getsize(json_path) / 1024
+    print(f"Poses: {json_path} ({json_kb:.0f}KB, {len(poses)} poses)")
+    return json_path, audio_out
+
+
+# ---------------------------------------------------------------------------
+# 10. main — CLI entry point
 # ---------------------------------------------------------------------------
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     flags = [a for a in sys.argv[1:] if a.startswith("--")]
     overlay = "--overlay" in flags
+    save = "--save" in flags
+    export = "--export" in flags
 
     if not args:
-        print(f"Usage: {sys.argv[0]} [--overlay] <youtube-url-or-local-video>",
+        print(f"Usage: {sys.argv[0]} [--overlay] [--save] [--export] <url-or-video>",
               file=sys.stderr)
         sys.exit(1)
 
@@ -542,17 +624,29 @@ def main():
         if is_temp:
             temp_files.append(video_path)
 
-        # Step 2: extract audio
-        audio_path = extract_audio(video_path)
-        temp_files.append(audio_path)
-
-        # Step 3: extract poses
+        # Step 2: extract poses
         poses, raw_poses = extract_poses(video_path)
 
-        # Step 4: play (pass video_path + raw_poses for overlay mode)
-        play(poses, audio_path,
-             video_path=video_path if overlay else None,
-             raw_poses=raw_poses if overlay else None)
+        # Step 3: export if requested (audio + poses from same video)
+        if export:
+            export_choreography(poses, video_path, source)
+
+        # Step 4: play (skip if export-only)
+        if not export:
+            audio_path = extract_audio(video_path)
+            temp_files.append(audio_path)
+
+            save_path = None
+            if save:
+                from datetime import datetime
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                save_path = os.path.join(os.path.dirname(__file__), "..", f"output_{ts}.mp4")
+                save_path = os.path.abspath(save_path)
+
+            play(poses, audio_path,
+                 video_path=video_path if overlay else None,
+                 raw_poses=raw_poses if overlay else None,
+                 save_path=save_path)
 
     finally:
         # Clean up temp files

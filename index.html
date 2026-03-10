@@ -28,10 +28,33 @@
     </section>
 
     <section class="song-selection">
-      <label class="upload-label">
-        Upload Song
-        <input type="file" accept="audio/*" id="file-upload" hidden>
-      </label>
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="freestyle">Freestyle</button>
+        <button class="mode-btn" data-mode="choreo">Choreographed</button>
+      </div>
+
+      <div id="freestyle-panel">
+        <label class="upload-label">
+          Upload Song
+          <input type="file" accept="audio/*" id="file-upload" hidden>
+        </label>
+      </div>
+
+      <div id="choreo-panel" style="display:none;">
+        <select id="song-select">
+          <option value="" disabled selected>Pick a song...</option>
+          <option value="choreo_e945aeb3">YMCA — Village People</option>
+          <option value="choreo_b08abf2e">Low — T-Pain ft. Flo Rida</option>
+          <option value="choreo_f45b6e13">Paint the Town Red — Doja Cat</option>
+          <option value="choreo_3d290c67">Levels — Avicii</option>
+          <option value="choreo_abb179c0">Toxic — Britney Spears</option>
+          <option value="choreo_8cb1bb1d">Whistle — Flo Rida</option>
+          <option value="choreo_ed69a1bd">Swalla — Jason Derulo</option>
+          <option value="choreo_316e73fb">Gangnam Style — PSY</option>
+          <option value="choreo_1c8fc6ab">Macarena — Los del Rio</option>
+          <option value="choreo_8c8baa09">No Lie — Dua Lipa</option>
+        </select>
+      </div>
     </section>
 
     <section class="controls">
