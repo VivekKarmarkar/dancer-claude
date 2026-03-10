@@ -10,7 +10,7 @@ All three tools were given the same starting point: build a browser-based stick 
 
 | Tool | Result |
 |------|--------|
-| **Claude Code** | Asked the right question unprompted — proposed a discrete move alphabet (distinct poses composed into sequences) that matched the user's mental model exactly. Built the full engine in the first session. Free. |
+| **Claude Code** | Asked the right question unprompted — proposed a discrete move alphabet (distinct poses composed into sequences) that matched the user's mental model exactly. Built the full engine in the first session. Included with the Max plan. |
 | **Google AI Studio** | Didn't ask questions. Jumped straight to code. Went in the wrong direction from step 1. Way off. |
 | **Lovable** | Has plan mode, but didn't ask the right questions during planning. Started closer but still diverged from the right design at step 1. Got closer with iteration but hit a credit paywall before reaching parity. Costs money. |
 
@@ -39,7 +39,7 @@ App builders are sandboxed browser environments. They never touch your disk.
 2. **Local machine access** — Runs in your terminal, your filesystem, with your tools. Not a cloud sandbox.
 3. **Cross-runtime** — Seamlessly works across Python (ML pipeline) and JavaScript (browser app) in the same session.
 4. **Multi-session collaboration** — Persistent filesystem means work compounds across sessions. The library built in one session is served by the browser app in the next.
-5. **Free** — No credit limits. Lovable hits a paywall mid-iteration.
+5. **Included with Max plan** — No per-project credit limits. Lovable hits a paywall mid-iteration.
 
 ## The Simple Version
 
