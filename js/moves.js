@@ -1,3 +1,5 @@
+import { LEARNED_MOVES } from './learned_moves.js';
+
 // Dance move definitions — keyframe-based pose deltas applied on top of the default standing pose.
 // Each keyframe pose contains only the joints that move; omitted joints stay at {x:0, y:0} delta.
 // All moves start and end at the default pose (empty {} pose) for seamless chaining.
@@ -1075,5 +1077,22 @@ export function getAllMoves() {
  */
 export function getMovesByEnergy(energy) {
     return MOVES.filter(m => m.energy === energy);
+}
+
+/**
+ * Get learned moves that have keyframes, filtered by energy.
+ * @param {'low'|'mid'|'high'} energy
+ * @returns {Array} Learned moves matching the given energy level
+ */
+export function getLearnedMovesByEnergy(energy) {
+    return LEARNED_MOVES.filter(m => m.keyframes && m.energy === energy);
+}
+
+/**
+ * Check if any learned moves with keyframes exist.
+ * @returns {boolean}
+ */
+export function hasLearnedMoves() {
+    return LEARNED_MOVES.some(m => m.keyframes);
 }
 

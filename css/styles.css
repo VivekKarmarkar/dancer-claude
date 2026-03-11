@@ -131,6 +131,20 @@ header h1 {
   border-color: #6c5ce7;
 }
 
+.mix-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e6edf3;
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+
+#learned-mix-slider {
+  flex: 1;
+  accent-color: #e8a735;
+}
+
 /* ===== Mode Toggle ===== */
 .mode-toggle {
   display: flex;

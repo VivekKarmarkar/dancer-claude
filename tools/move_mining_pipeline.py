@@ -229,6 +229,55 @@ def compute_move_labels(activations, atom_id, audio_analysis, dictionary,
     }
 
 
+# Standing pose — must match js/skeleton.js getDefaultPose()
+STANDING_POSE = {
+    "head": [400, 120], "neck": [400, 155],
+    "leftShoulder": [360, 165], "rightShoulder": [440, 165],
+    "leftElbow": [330, 220], "rightElbow": [470, 220],
+    "leftHand": [310, 270], "rightHand": [490, 270],
+    "hip": [400, 280],
+    "leftKnee": [375, 360], "rightKnee": [425, 360],
+    "leftFoot": [365, 440], "rightFoot": [435, 440],
+}
+
+# Keyframe sample indices: frames 0, 3, 7, 11, 14 out of 15 → times 0.0, 0.25, 0.5, 0.75, 1.0
+KEYFRAME_INDICES = [0, 3, 7, 11, 14]
+KEYFRAME_TIMES = [0.0, 0.25, 0.5, 0.75, 1.0]
+
+
+def convert_to_keyframes(atom_seq, window_sec):
+    """Convert absolute pose sequence to keyframe deltas from standing pose.
+
+    Takes (window_frames, N_JOINTS, 2) array, returns list of keyframe dicts
+    in the same format as moves.js hand-crafted moves. Last keyframe is always
+    empty pose (return to standing).
+    """
+    window_frames = atom_seq.shape[0]
+    keyframes = []
+
+    for idx, t in zip(KEYFRAME_INDICES, KEYFRAME_TIMES):
+        if idx >= window_frames:
+            idx = window_frames - 1
+
+        # Last keyframe: empty pose (return to standing)
+        if t == 1.0:
+            keyframes.append({"time": t, "pose": {}})
+            break
+
+        pose = {}
+        for j, joint_name in enumerate(JOINT_ORDER):
+            abs_x = float(atom_seq[idx, j, 0])
+            abs_y = float(atom_seq[idx, j, 1])
+            dx = round(abs_x - STANDING_POSE[joint_name][0], 1)
+            dy = round(abs_y - STANDING_POSE[joint_name][1], 1)
+            if abs(dx) > 0.5 or abs(dy) > 0.5:
+                pose[joint_name] = {"x": dx, "y": dy}
+
+        keyframes.append({"time": t, "pose": pose})
+
+    return keyframes
+
+
 # ── Dictionary learning ────────────────────────────────────────────
 
 def run_dictionary_learning(X_centered, n_atoms, alpha):
@@ -501,6 +550,9 @@ def save_learned_moves(kept, atoms_data, song_name, choreo_path, window_sec,
             move["energy"] = labels[atom_id]["energy"]
             move["durationBeats"] = labels[atom_id]["durationBeats"]
             move["type"] = labels[atom_id]["type"]
+        keyframes = convert_to_keyframes(seq, window_sec)
+        move["keyframes"] = keyframes
+        move["source"] = "learned"
         moves_list.append(move)
 
     js_content = "// Learned moves — mined from choreographies via dictionary learning + human review.\n"

@@ -6,6 +6,7 @@ import { StylizedTheme } from './themes/stylized.js';
 import { WildTheme } from './themes/wild.js';
 import { VideoExporter } from './video-exporter.js';
 import { PosePlayer } from './pose-player.js';
+import { hasLearnedMoves } from './moves.js';
 
 class DancerApp {
     constructor() {
@@ -85,6 +86,15 @@ class DancerApp {
         songSelect.addEventListener('change', () => {
             const stem = songSelect.value;
             if (stem) this.loadChoreography(stem);
+        });
+
+        // Show learned mix slider if learned moves exist
+        if (hasLearnedMoves()) {
+            document.getElementById('learned-mix-container').style.display = '';
+        }
+
+        document.getElementById('learned-mix-slider').addEventListener('input', (e) => {
+            this.sequencer.learnedMix = parseInt(e.target.value) / 100;
         });
 
         // PLAY BUTTON

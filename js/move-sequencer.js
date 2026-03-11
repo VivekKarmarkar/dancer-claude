@@ -1,4 +1,4 @@
-import { getAllMoves, getMovesByEnergy } from './moves.js';
+import { getAllMoves, getMovesByEnergy, getLearnedMovesByEnergy } from './moves.js';
 import { Skeleton, JOINTS } from './skeleton.js';
 
 // Joints belonging to upper vs lower body for layered movement
@@ -17,6 +17,8 @@ export class MoveSequencer {
 
         this.bpm = 120;
         this.energy = 0.3;
+        // Learned move mix: 0 = pure freestyle, 1 = always prefer learned
+        this.learnedMix = 0;
         this.beatTimes = [];
         this.beatCount = 0;
 
@@ -378,7 +380,14 @@ export class MoveSequencer {
             energyLevel = 'high';
         }
 
-        let candidates = getMovesByEnergy(energyLevel);
+        // Decide which pool: learned vs freestyle
+        let candidates;
+        const learnedCandidates = getLearnedMovesByEnergy(energyLevel);
+        if (learnedCandidates.length > 0 && Math.random() < this.learnedMix) {
+            candidates = learnedCandidates;
+        } else {
+            candidates = getMovesByEnergy(energyLevel);
+        }
 
         // Filter by type if specified
         if (typeFilter) {
