@@ -6,10 +6,10 @@ Three visual themes, video recording, and a dance engine that actually feels the
 
 ## Two Modes
 
-### Freestyle (Level 1)
+### Freestyle
 Upload any audio file. The stick figure improvises in real-time using beat detection, 23 dance moves, and layered body mechanics. Works with any genre — pop, EDM, Bollywood, hip-hop.
 
-### Learnt (Levels 2 & 4)
+### Learnt
 Pick from 10 pre-learned **songs** or individual **moves**. Songs play full choreographies extracted from YouTube dance videos. Moves are short clips mined from those choreographies via dictionary learning — a human picks the best atoms, and the system saves them as playable mini-choreographies with a shared background track.
 
 **Available songs:**
@@ -129,6 +129,3 @@ Requires a modern browser with:
 
 Tested on Chrome, Firefox, and Edge.
 
-## Roadmap
-
-See [ROADMAP.md](ROADMAP.md) for the full build history — four levels from freestyle improvisation to move mining via dictionary learning.
