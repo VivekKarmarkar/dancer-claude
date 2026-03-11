@@ -6,7 +6,6 @@ import { StylizedTheme } from './themes/stylized.js';
 import { WildTheme } from './themes/wild.js';
 import { VideoExporter } from './video-exporter.js';
 import { PosePlayer } from './pose-player.js';
-import { hasLearnedMoves } from './moves.js';
 
 class DancerApp {
     constructor() {
@@ -81,20 +80,40 @@ class DancerApp {
             });
         });
 
-        // SONG SELECT (choreographed mode)
+        // LEARNT SUB-TOGGLE (Song / Move)
+        const learntButtons = document.querySelectorAll('[data-learnt]');
+        const songPanel = document.getElementById('song-panel');
+        const movePanel = document.getElementById('move-panel');
+        learntButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                learntButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                songPanel.style.display = btn.dataset.learnt === 'song' ? '' : 'none';
+                movePanel.style.display = btn.dataset.learnt === 'move' ? '' : 'none';
+
+                if (this.isPlaying) {
+                    this.audio.pause();
+                    this.isPlaying = false;
+                    document.getElementById('play-btn').textContent = 'Play';
+                }
+            });
+        });
+
+        // Load move manifest and populate dropdown
+        this._loadMoveManifest();
+
+        // SONG SELECT (learnt mode — full songs)
         const songSelect = document.getElementById('song-select');
         songSelect.addEventListener('change', () => {
             const stem = songSelect.value;
             if (stem) this.loadChoreography(stem);
         });
 
-        // Show learned mix slider if learned moves exist
-        if (hasLearnedMoves()) {
-            document.getElementById('learned-mix-container').style.display = '';
-        }
-
-        document.getElementById('learned-mix-slider').addEventListener('input', (e) => {
-            this.sequencer.learnedMix = parseInt(e.target.value) / 100;
+        // MOVE SELECT (learnt mode — individual moves)
+        const moveSelect = document.getElementById('move-select');
+        moveSelect.addEventListener('change', () => {
+            const stem = moveSelect.value;
+            if (stem) this.loadChoreography(stem, 'move');
         });
 
         // PLAY BUTTON
@@ -244,11 +263,29 @@ class DancerApp {
         }
     }
 
-    async loadChoreography(stem) {
+    async _loadMoveManifest() {
         try {
-            const meta = await this.posePlayer.load(`library/${stem}.json`);
+            const resp = await fetch('library/moves/manifest.json');
+            if (!resp.ok) return;
+            const moves = await resp.json();
+            const moveSelect = document.getElementById('move-select');
+            for (const move of moves) {
+                const opt = document.createElement('option');
+                opt.value = move.stem;
+                opt.textContent = move.name;
+                moveSelect.appendChild(opt);
+            }
+        } catch {
+            // No moves yet — that's fine
+        }
+    }
+
+    async loadChoreography(stem, source) {
+        const basePath = source === 'move' ? 'library/moves' : 'library';
+        try {
+            const meta = await this.posePlayer.load(`${basePath}/${stem}.json`);
             await this.audio.init();
-            await this.audio.loadAudio(`library/${meta.audio}`);
+            await this.audio.loadAudio(`${basePath}/${meta.audio}`);
         } catch (err) {
             console.error('Failed to load choreography:', err);
             document.querySelector('.now-playing').textContent =
@@ -262,10 +299,16 @@ class DancerApp {
         this.sequencer.moveProgress = 0;
         this.sequencer.beatTimes = [];
 
-        // Update UI — show selected song name from the dropdown
-        const songSelect = document.getElementById('song-select');
-        const songName = songSelect.options[songSelect.selectedIndex].text;
-        document.querySelector('.now-playing').textContent = `Now playing: ${songName}`;
+        // Update UI — show name from the active dropdown
+        let displayName;
+        if (source === 'move') {
+            const moveSelect = document.getElementById('move-select');
+            displayName = moveSelect.options[moveSelect.selectedIndex].text;
+        } else {
+            const songSelect = document.getElementById('song-select');
+            displayName = songSelect.options[songSelect.selectedIndex].text;
+        }
+        document.querySelector('.now-playing').textContent = `Now playing: ${displayName}`;
         document.getElementById('play-btn').disabled = false;
         document.getElementById('record-btn').disabled = false;
         document.getElementById('record-full-btn').disabled = false;

@@ -32,7 +32,6 @@ from dictionary_learning_choreography import (
 
 DARK_BG = "#0d1117"
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LEARNED_MOVES_JS_PATH = REPO_ROOT / "js" / "learned_moves.js"
 LEARNED_MOVES_GIF_DIR = REPO_ROOT / "tools" / "analysis_output" / "learned_moves"
 
 
@@ -150,13 +149,13 @@ def find_spike_windows(activations, atom_id, window_sec, percentile=80):
 
 
 def compute_move_labels(activations, atom_id, audio_analysis, dictionary,
-                        window_sec):
+                        window_sec, bpm=120.0):
     """Compute energy, durationBeats, and type labels for a single atom.
 
     1. Find spike windows (top 20% of |activation|)
     2. Gather audio analysis frames that fall within spike windows
     3. energy: median energy → bin into 'low'/'mid'/'high' (thresholds 0.33, 0.66)
-    4. durationBeats: BPM from beat intervals × atom duration in seconds
+    4. durationBeats: BPM × atom duration in seconds
     5. type: from joint energy distribution — upper body dominant → 'arms', else 'full-body'
     """
     # 1. Spike windows
@@ -192,17 +191,8 @@ def compute_move_labels(activations, atom_id, audio_analysis, dictionary,
         energy_label = 'high'
 
     # 4. Duration in beats
-    # Estimate BPM from all detected beats in the song
-    all_beats = [f['time'] for f in audio_analysis if f['isBeat']]
-    if len(all_beats) >= 2:
-        intervals = [all_beats[i+1] - all_beats[i] for i in range(len(all_beats)-1)]
-        avg_interval = np.mean(intervals)
-        bpm = 60.0 / avg_interval if avg_interval > 0 else 120.0
-    else:
-        bpm = 120.0  # fallback
-
     duration_beats = round(bpm * window_sec / 60.0)
-    duration_beats = max(1, min(8, duration_beats))  # clamp to reasonable range
+    duration_beats = max(1, min(8, duration_beats))
 
     # 5. Type from joint energy distribution
     window_frames = int(window_sec * FPS)
@@ -229,51 +219,48 @@ def compute_move_labels(activations, atom_id, audio_analysis, dictionary,
     }
 
 
-# Standing pose — must match js/skeleton.js getDefaultPose()
-STANDING_POSE = {
-    "head": [400, 120], "neck": [400, 155],
-    "leftShoulder": [360, 165], "rightShoulder": [440, 165],
-    "leftElbow": [330, 220], "rightElbow": [470, 220],
-    "leftHand": [310, 270], "rightHand": [490, 270],
-    "hip": [400, 280],
-    "leftKnee": [375, 360], "rightKnee": [425, 360],
-    "leftFoot": [365, 440], "rightFoot": [435, 440],
-}
-
-# Keyframe sample indices: frames 0, 3, 7, 11, 14 out of 15 → times 0.0, 0.25, 0.5, 0.75, 1.0
-KEYFRAME_INDICES = [0, 3, 7, 11, 14]
-KEYFRAME_TIMES = [0.0, 0.25, 0.5, 0.75, 1.0]
-
+# Freestyle standing skeleton height: head y=120, avg foot y=440 → 320px
+FREESTYLE_HEIGHT = 320.0
 
 def convert_to_keyframes(atom_seq, window_sec):
-    """Convert absolute pose sequence to keyframe deltas from standing pose.
+    """Convert absolute pose sequence to scaled keyframe deltas.
 
-    Takes (window_frames, N_JOINTS, 2) array, returns list of keyframe dicts
-    in the same format as moves.js hand-crafted moves. Last keyframe is always
-    empty pose (return to standing).
+    Uses ALL frames as keyframes (no downsampling) for full motion fidelity.
+    Skeleton fitting: first-frame-relative deltas scaled by height ratio
+    (freestyle 320px / choreo head-to-foot) so motion is proportionally correct.
+
+    First keyframe is {} (start at standing). Last keyframe is {} (return to standing).
     """
     window_frames = atom_seq.shape[0]
-    keyframes = []
+    ref = atom_seq[0]  # (N_JOINTS, 2) — atom's own first frame
 
-    for idx, t in zip(KEYFRAME_INDICES, KEYFRAME_TIMES):
-        if idx >= window_frames:
-            idx = window_frames - 1
+    # Compute skeleton scale: choreo head-to-foot height vs freestyle 320px
+    head_idx = JOINT_ORDER.index("head")
+    lfoot_idx = JOINT_ORDER.index("leftFoot")
+    rfoot_idx = JOINT_ORDER.index("rightFoot")
+    choreo_head_y = ref[head_idx, 1]
+    choreo_foot_y = (ref[lfoot_idx, 1] + ref[rfoot_idx, 1]) / 2
+    choreo_height = choreo_foot_y - choreo_head_y
+    scale = FREESTYLE_HEIGHT / choreo_height if choreo_height > 0 else 1.0
 
-        # Last keyframe: empty pose (return to standing)
-        if t == 1.0:
-            keyframes.append({"time": t, "pose": {}})
-            break
+    keyframes = [{"time": 0.0, "pose": {}}]  # start at standing
+
+    for i in range(1, window_frames):
+        t = round(i / window_frames, 4)
 
         pose = {}
         for j, joint_name in enumerate(JOINT_ORDER):
-            abs_x = float(atom_seq[idx, j, 0])
-            abs_y = float(atom_seq[idx, j, 1])
-            dx = round(abs_x - STANDING_POSE[joint_name][0], 1)
-            dy = round(abs_y - STANDING_POSE[joint_name][1], 1)
+            raw_dx = float(atom_seq[i, j, 0] - ref[j, 0])
+            raw_dy = float(atom_seq[i, j, 1] - ref[j, 1])
+            dx = round(raw_dx * scale, 1)
+            dy = round(raw_dy * scale, 1)
             if abs(dx) > 0.5 or abs(dy) > 0.5:
                 pose[joint_name] = {"x": dx, "y": dy}
 
         keyframes.append({"time": t, "pose": pose})
+
+    # Return to standing
+    keyframes.append({"time": 1.0, "pose": {}})
 
     return keyframes
 
@@ -508,15 +495,18 @@ def save_move_gif(atom_seq, move_name):
 
 # ── Save learned moves ─────────────────────────────────────────────
 
+MOVES_DIR = REPO_ROOT / "library" / "moves"
+MOVES_MANIFEST_PATH = MOVES_DIR / "manifest.json"
+
 def save_learned_moves(kept, atoms_data, song_name, choreo_path, window_sec,
-                       labels=None):
-    """Append kept moves to js/learned_moves.js and save GIFs."""
-    moves_list = []
-    if LEARNED_MOVES_JS_PATH.exists():
-        raw = LEARNED_MOVES_JS_PATH.read_text()
-        json_start = raw.index("[")
-        json_end = raw.rindex("]") + 1
-        moves_list = json.loads(raw[json_start:json_end])
+                       activations, labels=None):
+    """Save each kept move as a mini-choreo JSON in library/moves/."""
+    MOVES_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Load existing manifest
+    manifest = []
+    if MOVES_MANIFEST_PATH.exists():
+        manifest = json.loads(MOVES_MANIFEST_PATH.read_text())
 
     window_frames = int(window_sec * FPS)
 
@@ -528,40 +518,54 @@ def save_learned_moves(kept, atoms_data, song_name, choreo_path, window_sec,
         gif_path = save_move_gif(seq, move_name)
         print(f"  GIF: {gif_path}")
 
-        poses = []
+        # Build one loop of poses
+        one_loop = []
         for frame_idx in range(window_frames):
             t = round(frame_idx / FPS, 4)
             joints = {}
             for j, name in enumerate(JOINT_ORDER):
                 joints[name] = [round(float(seq[frame_idx, j, 0]), 1),
                                 round(float(seq[frame_idx, j, 1]), 1)]
-            poses.append({"t": t, "joints": joints})
+            one_loop.append({"t": t, "joints": joints})
 
-        move = {
-            "name": move_name,
-            "source_song": song_name,
-            "source_file": Path(choreo_path).name,
-            "atom_id": atom_id,
-            "window_sec": window_sec,
-            "fps": FPS,
+        # Repeat poses 5x for a 5-second looped clip
+        n_loops = 5
+        poses = []
+        for loop_i in range(n_loops):
+            offset = loop_i * window_sec
+            for frame in one_loop:
+                poses.append({"t": round(frame["t"] + offset, 4), "joints": frame["joints"]})
+        total_duration = window_sec * n_loops
+
+        # All moves use the shared background track
+        audio_filename = "learnt_moves_track.wav"
+
+        # Save mini-choreo JSON (same format PosePlayer expects)
+        choreo_data = {
+            "meta": {
+                "source": f"learned from {song_name}",
+                "audio": audio_filename,
+                "duration": total_duration,
+                "poseCount": len(poses),
+                "sampleFps": FPS,
+                "canvas": [800, 500],
+            },
             "poses": poses,
         }
-        if labels and atom_id in labels:
-            move["energy"] = labels[atom_id]["energy"]
-            move["durationBeats"] = labels[atom_id]["durationBeats"]
-            move["type"] = labels[atom_id]["type"]
-        keyframes = convert_to_keyframes(seq, window_sec)
-        move["keyframes"] = keyframes
-        move["source"] = "learned"
-        moves_list.append(move)
+        json_path = MOVES_DIR / f"{move_name}.json"
+        json_path.write_text(json.dumps(choreo_data, indent=2))
+        print(f"  JSON: {json_path}")
 
-    js_content = "// Learned moves — mined from choreographies via dictionary learning + human review.\n"
-    js_content += "// Auto-generated by tools/move_mining_pipeline.py — do not edit by hand.\n\n"
-    js_content += "export const LEARNED_MOVES = "
-    js_content += json.dumps(moves_list, indent=2)
-    js_content += ";\n"
+        # Add to manifest (avoid duplicates)
+        if not any(m["stem"] == move_name for m in manifest):
+            manifest.append({
+                "stem": move_name,
+                "name": move_name,
+                "song": song_name,
+            })
 
-    LEARNED_MOVES_JS_PATH.write_text(js_content)
+    # Write manifest
+    MOVES_MANIFEST_PATH.write_text(json.dumps(manifest, indent=2))
     return len(kept)
 
 
@@ -598,12 +602,19 @@ def main():
 
     # Audio analysis for labeling
     audio_analysis = None
+    audio_mono = None
+    sr = None
+    song_bpm = 120.0
     if mp3_path:
         print(f"\n── Audio Analysis ──")
         audio_mono, sr = librosa.load(mp3_path, sr=44100, mono=True)
         print(f"  Loaded: {mp3_path} ({len(audio_mono)/sr:.1f}s)")
         audio_analysis = browser_fft_analysis(audio_mono, sr)
         print(f"  Analysis frames: {len(audio_analysis)}")
+        # Robust BPM estimation via librosa
+        tempo = librosa.beat.tempo(y=audio_mono, sr=sr)
+        song_bpm = float(tempo[0]) if hasattr(tempo, '__len__') else float(tempo)
+        print(f"  BPM: {song_bpm:.0f}")
 
     # Step 2: Prepare atoms
     print(f"\n── Preparing Atoms ──")
@@ -633,7 +644,8 @@ def main():
         for item in kept:
             atom_id = item['atom_id']
             move_labels = compute_move_labels(
-                activations, atom_id, audio_analysis, dictionary, args.window
+                activations, atom_id, audio_analysis, dictionary, args.window,
+                bpm=song_bpm
             )
             labels[atom_id] = move_labels
             print(f"  Atom {atom_id}: energy={move_labels['energy']}, "
@@ -644,8 +656,9 @@ def main():
         for item in kept:
             print(f"  Atom {item['atom_id']}: \"{item['name']}\"")
         n_saved = save_learned_moves(kept, atoms_data, args.song, args.choreo,
-                                     args.window, labels)
-        print(f"\n  Saved {n_saved} moves to {LEARNED_MOVES_JS_PATH}")
+                                     args.window, activations,
+                                     labels=labels)
+        print(f"\n  Saved {n_saved} moves to {MOVES_DIR}")
     else:
         print(f"  No moves selected. Nothing saved.")
 
