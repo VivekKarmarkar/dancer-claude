@@ -1,6 +1,6 @@
 # Project Roadmap: Dancer Claude
 
-> **Updated:** 2026-03-10
+> **Updated:** 2026-03-11
 
 ## Vision
 
@@ -28,9 +28,9 @@ Pick a pre-learned song from a dropdown, the stick figure performs the exact cho
 - `tools/dance.py` — YouTube → MediaPipe pose extraction → normalized JSON + synced MP3
 - 10-song library (YMCA, Macarena, Gangnam Style, Toxic, etc.)
 - `PosePlayer` module — O(1) frame lookup, smoothstep interpolation at 60fps
-- Freestyle/Choreographed mode toggle in the browser UI
+- Freestyle/Learnt mode toggle in the browser UI (renamed from Choreographed)
 - Themes stay reactive to the beat in both modes
-- All existing controls (pause, seek, record) work in choreo mode
+- All existing controls (pause, seek, record) work in learnt mode
 
 ---
 
@@ -54,21 +54,17 @@ This is the level that makes the project feel *integrated* — Freestyle and Cho
 
 ---
 
-## Level 4: Move Mining — FUTURE
+## Level 4: Move Mining — DONE
 
-Extract individual moves from the choreography library to expand the freestyle vocabulary. Instead of 23 hand-crafted moves, the system learns new moves from what it's watched.
+Extract individual moves from choreographies via dictionary learning and human curation. Mined moves are playable directly in the browser as mini-choreographies.
 
-**The hard problem:** A choreography is a continuous stream of joint positions with no labels. You have to figure out where one move ends and another begins, then decide what's a distinct move vs. a variation.
-
-**Approaches to explore:**
-- **Segmentation** — velocity minima (moments where the body is relatively still) as natural move boundaries
-- **Clustering** — group similar segments across songs (DTW / dynamic time warping for pose sequence similarity)
-- **Decomposition** — split full-body segments into upper/lower body moves to match the freestyle engine's layering system
-
-**What "done" looks like:**
-- Feed in 10 choreographies, get back 15-30 distinct new moves
-- New moves plug into the freestyle sequencer and look natural
-- The freestyle vocabulary grows with every YouTube video fed into the system
+- `tools/move_mining_pipeline.py` — dictionary learning decomposes choreographies into recurring pose patterns (atoms)
+- GTK dialog shows animated GIFs of each atom — human picks the good ones and names them
+- Selected moves saved as mini-choreo JSONs in `library/moves/` (same format as full choreographies)
+- Shared background track replaces per-move audio slicing — avoids weird looping artifacts
+- Song/Move sub-toggle under Learnt mode — moves show up in their own dropdown
+- Reuses PosePlayer infrastructure — zero data transformation, full fidelity from the original choreography
+- Auto-labeling: energy level, duration in beats, move type (arms/legs/full-body) computed from audio DSP
 
 ---
 

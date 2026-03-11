@@ -1,6 +1,6 @@
 # Dancer Claude
 
-A browser-based stick figure that dances to music — two ways. In **Freestyle** mode, upload any song and it improvises to the beat. In **Choreographed** mode, pick a pre-learned song and it performs the exact moves extracted from a real YouTube dance video.
+A browser-based stick figure that dances to music — two ways. In **Freestyle** mode, upload any song and it improvises to the beat. In **Learnt** mode, pick a pre-learned song or individual move and it performs the exact choreography extracted from a real YouTube dance video.
 
 Three visual themes, video recording, and a dance engine that actually feels the music.
 
@@ -9,8 +9,8 @@ Three visual themes, video recording, and a dance engine that actually feels the
 ### Freestyle (Level 1)
 Upload any audio file. The stick figure improvises in real-time using beat detection, 23 dance moves, and layered body mechanics. Works with any genre — pop, EDM, Bollywood, hip-hop.
 
-### Choreographed (Level 2)
-Pick from 10 pre-learned songs. The stick figure performs choreography extracted from real YouTube dance videos via MediaPipe pose tracking. Audio and poses are time-synced — the figure hits the exact moves at the exact moments.
+### Learnt (Levels 2 & 4)
+Pick from 10 pre-learned **songs** or individual **moves**. Songs play full choreographies extracted from YouTube dance videos. Moves are short clips mined from those choreographies via dictionary learning — a human picks the best atoms, and the system saves them as playable mini-choreographies with a shared background track.
 
 **Available songs:**
 | Song | Artist |
@@ -30,6 +30,7 @@ Pick from 10 pre-learned songs. The stick figure performs choreography extracted
 
 - **Real-time beat detection** — Web Audio API analyzes the music and syncs dance moves to the rhythm
 - **Choreography playback** — Pre-extracted poses from YouTube dance videos, interpolated at 60fps
+- **Move mining** — Dictionary learning extracts recurring moves from choreographies; human picks the best ones
 - **Multi-genre support** — Tuned for both Western (kick drum) and Indian (dhol, tabla, tasha) percussion
 - **23 freestyle moves** — Head bobs, hip shakes, jumps, spins, thumkas, bhangra, shoulder shimmy, and more
 - **Layered movement** — Upper body and lower body move independently for natural-looking freestyle dance
@@ -56,8 +57,8 @@ open http://localhost:8080
 
 ### How to Use
 
-1. Choose a mode: **Freestyle** or **Choreographed**
-2. In Freestyle, upload any audio file (MP3, WAV, OGG). In Choreographed, pick a song from the dropdown.
+1. Choose a mode: **Freestyle** or **Learnt**
+2. In Freestyle, upload any audio file (MP3, WAV, OGG). In Learnt, toggle between **Song** (full choreography) and **Move** (individual mined moves).
 3. Hit **Play** — the stick figure starts dancing
 4. Switch themes with the toggle buttons at the top — background effects stay reactive to the beat
 5. Hit **Record** for a live clip, or **Record Full Song** to capture the whole performance
@@ -83,9 +84,11 @@ js/
 library/
   choreo_*.json       — Timestamped joint positions extracted from YouTube videos
   choreo_*.mp3        — Paired audio files (synced to the JSON poses)
+  moves/              — Mined moves: mini-choreo JSONs + shared background track + manifest
   catalog.md          — Tracking which YouTube videos work well
 tools/
   dance.py            — Choreography extraction engine (YouTube → MediaPipe → JSON+MP3)
+  move_mining_pipeline.py — Dictionary learning + human review → learnt moves
 ```
 
 ## How the Dance Engine Works
@@ -100,11 +103,12 @@ tools/
 7. **Micro-Variation** — Each move instance gets random scale (0.85-1.15x), offset, and possible mirroring
 8. **Dynamic Amplitude** — All deltas scale with the music's energy level
 
-### Choreographed Mode
+### Learnt Mode
 1. **Pose Loading** — `PosePlayer` fetches the choreography JSON and converts raw `[x,y]` arrays to `{x,y}` objects once at load time
 2. **Fast Lookup** — At ~60fps, the current frame is found via O(1) index guess (`Math.floor(time * sampleFps)`) with a small correction scan
 3. **Smoothstep Interpolation** — Between frames, `Skeleton.interpolate()` applies smoothstep easing for fluid motion
 4. **Theme Reactivity** — Audio analysis still runs, so background effects (spotlights, particles, ripples) pulse to the beat even though the figure follows pre-recorded choreography
+5. **Move Mining** — Dictionary learning decomposes choreographies into recurring pose patterns (atoms). A human reviews animated GIFs and picks the best ones. Selected moves are saved as mini-choreography JSONs reusing the same PosePlayer infrastructure — zero data transformation, full fidelity.
 
 ## Extracting New Choreography
 
@@ -127,4 +131,4 @@ Tested on Chrome, Firefox, and Edge.
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the full vision — audio fingerprinting (auto-recognition of known songs), reaction animations ("Oh I know this one!"), and scaling to 20+ songs.
+See [ROADMAP.md](ROADMAP.md) for the full vision — audio fingerprinting (auto-recognition of known songs), reaction animations ("Oh I know this one!"), and growing the move library.
