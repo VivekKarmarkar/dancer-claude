@@ -131,4 +131,4 @@ Tested on Chrome, Firefox, and Edge.
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the full vision — audio fingerprinting (auto-recognition of known songs), reaction animations ("Oh I know this one!"), and growing the move library.
+See [ROADMAP.md](ROADMAP.md) for the full build history — four levels from freestyle improvisation to move mining via dictionary learning.
