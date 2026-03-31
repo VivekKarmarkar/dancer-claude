@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fusion Demo — Learnt Moves on Freestyle Skeleton</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 20px; }
+    h2 { color: #0af; margin-bottom: 5px; }
+    .sub { color: #888; margin-top: 0; }
+    canvas { border: 1px solid #333; }
+    .canvases { display: flex; gap: 20px; flex-wrap: wrap; }
+    .canvas-box { text-align: center; }
+    .canvas-box p { margin: 4px 0; color: #aaa; }
+    select, button { font-family: monospace; font-size: 14px; padding: 6px 12px;
+      background: #222; color: #eee; border: 1px solid #555; cursor: pointer; }
+    select:hover, button:hover { border-color: #0af; }
+    .controls { margin: 15px 0; display: flex; gap: 10px; align-items: center; }
+    .time { color: #0af; min-width: 80px; }
+  </style>
+</head>
+<body>
+  <h2>Fusion Demo</h2>
+  <p class="sub">Learnt dances & moves played through the freestyle skeleton via angle decomposition</p>
+
+  <div class="controls">
+    <select id="source-select">
+      <optgroup label="Full Songs">
+        <option value="song:choreo_e945aeb3">YMCA — Village People</option>
+        <option value="song:choreo_b08abf2e">Low — T-Pain ft. Flo Rida</option>
+        <option value="song:choreo_f45b6e13">Paint the Town Red — Doja Cat</option>
+        <option value="song:choreo_3d290c67">Levels — Avicii</option>
+        <option value="song:choreo_abb179c0">Toxic — Britney Spears</option>
+        <option value="song:choreo_8cb1bb1d">Whistle — Flo Rida</option>
+        <option value="song:choreo_ed69a1bd">Swalla — Jason Derulo</option>
+        <option value="song:choreo_316e73fb">Gangnam Style — PSY</option>
+        <option value="song:choreo_1c8fc6ab">Macarena — Los del Rio</option>
+        <option value="song:choreo_8c8baa09">No Lie — Dua Lipa</option>
+      </optgroup>
+      <optgroup label="Extracted Moves">
+        <option value="move:shuffle">shuffle (Levels)</option>
+        <option value="move:wiggle">wiggle (Macarena)</option>
+      </optgroup>
+    </select>
+    <button id="play-btn">Play</button>
+    <span class="time" id="time-display">0.00s</span>
+  </div>
+
+  <div class="canvases">
+    <div class="canvas-box">
+      <p>Original learnt (absolute coords)</p>
+      <canvas id="original" width="800" height="500"></canvas>
+    </div>
+    <div class="canvas-box">
+      <p>Fused (angles → freestyle skeleton)</p>
+      <canvas id="fused" width="800" height="500"></canvas>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Skeleton, JOINTS } from './js/skeleton.js';
+    import {
+      computeBoneLengths,
+      globalToAngles,
+      anglesToGlobal,
+    } from './js/fusion.js';
+
+    const skeleton = new Skeleton();
+    const defaultPose = skeleton.getDefaultPose();
+    const freestyleLengths = computeBoneLengths(defaultPose);
+
+    let frames = [];        // original poses (absolute {x,y})
+    let fusedFrames = [];   // fused poses (absolute {x,y}, freestyle proportions)
+    let duration = 5.0;
+    let sampleFps = 15;
+    let playing = false;
+    let startTime = 0;
+    let loopPlayback = true; // loop for short moves, no loop for full songs
+
+    // --- Load and fuse from either source ---
+    async function loadSource(sourceKey) {
+      const [type, stem] = sourceKey.split(':');
+      const jsonUrl = type === 'song'
+        ? `library/${stem}.json`
+        : `library/moves/${stem}.json`;
+
+      const resp = await fetch(jsonUrl);
+      const data = await resp.json();
+      duration = data.meta.duration;
+      sampleFps = data.meta.sampleFps;
+
+      // Convert all frames
+      frames = [];
+      fusedFrames = [];
+
+      for (const raw of data.poses) {
+        // Original: [x,y] → {x,y}
+        const pose = {};
+        for (const joint of JOINTS) {
+          const arr = raw.joints[joint];
+          pose[joint] = arr ? { x: arr[0], y: arr[1] } : { ...defaultPose[joint] };
+        }
+        pose._t = raw.t;
+        frames.push(pose);
+
+        // Fused: angles from learnt → reconstruct with freestyle bones
+        const angles = globalToAngles(pose);
+        const fused = anglesToGlobal(angles, freestyleLengths, defaultPose);
+        fused._t = raw.t;
+        fusedFrames.push(fused);
+      }
+
+      return data.meta;
+    }
+
+    // --- Interpolated pose lookup (same logic as PosePlayer) ---
+    function getPoseAtTime(frameList, time) {
+      const len = frameList.length;
+      // Loop time
+      const t = time % duration;
+
+      if (t <= frameList[0]._t) return frameList[0];
+      if (t >= frameList[len - 1]._t) return frameList[len - 1];
+
+      // Fast guess
+      let i = Math.floor(t * sampleFps);
+      if (i >= len - 1) i = len - 2;
+      if (i < 0) i = 0;
+      while (i < len - 2 && frameList[i + 1]._t <= t) i++;
+      while (i > 0 && frameList[i]._t > t) i--;
+
+      const frameA = frameList[i];
+      const frameB = frameList[i + 1];
+      const span = frameB._t - frameA._t;
+      const frac = span > 0 ? (t - frameA._t) / span : 0;
+
+      return Skeleton.interpolate(frameA, frameB, frac);
+    }
+
+    // --- Render loop ---
+    function draw(canvasId, pose, color) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, 800, 500);
+
+      // Draw faint default pose for reference
+      skeleton.draw(ctx, defaultPose, { strokeColor: '#333', lineWidth: 1 });
+
+      // Draw active pose
+      skeleton.draw(ctx, pose, { strokeColor: color, lineWidth: 3 });
+    }
+
+    function animate(timestamp) {
+      requestAnimationFrame(animate);
+
+      if (!playing || frames.length === 0) return;
+
+      const elapsed = (performance.now() - startTime) / 1000;
+      const loopTime = loopPlayback ? elapsed % duration : Math.min(elapsed, duration);
+
+      const origPose = getPoseAtTime(frames, loopTime);
+      const fusedPose = getPoseAtTime(fusedFrames, loopTime);
+
+      draw('original', origPose, '#44aaff');
+      draw('fused', fusedPose, '#44ff88');
+
+      document.getElementById('time-display').textContent =
+        `${loopTime.toFixed(2)}s / ${duration.toFixed(1)}s`;
+    }
+
+    // --- UI ---
+    const playBtn = document.getElementById('play-btn');
+    const sourceSelect = document.getElementById('source-select');
+
+    playBtn.addEventListener('click', async () => {
+      if (!playing) {
+        playBtn.textContent = 'Loading...';
+        playBtn.disabled = true;
+        const sourceKey = sourceSelect.value;
+        await loadSource(sourceKey);
+
+        // Loop short moves, don't loop full songs
+        loopPlayback = sourceKey.startsWith('move:');
+
+        startTime = performance.now();
+        playing = true;
+        playBtn.textContent = 'Stop';
+        playBtn.disabled = false;
+      } else {
+        playing = false;
+        playBtn.textContent = 'Play';
+      }
+    });
+
+    sourceSelect.addEventListener('change', () => {
+      if (playing) {
+        playing = false;
+        playBtn.textContent = 'Play';
+      }
+    });
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

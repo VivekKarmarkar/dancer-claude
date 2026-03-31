@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fusion Test — Angle Decomposition Verification</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 20px; }
+    h2 { color: #0af; }
+    .pass { color: #0f0; }
+    .fail { color: #f44; }
+    canvas { border: 1px solid #333; margin: 10px; }
+    .canvases { display: flex; gap: 20px; flex-wrap: wrap; }
+    pre { background: #1a1a1a; padding: 10px; border-radius: 4px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h2>Fusion Pipeline — Angle Decomposition Test</h2>
+  <div id="log"></div>
+  <h2>Visual Comparison</h2>
+  <div class="canvases">
+    <div>
+      <p>Original learnt pose (blue)</p>
+      <canvas id="original" width="800" height="500"></canvas>
+    </div>
+    <div>
+      <p>Reconstructed via angles + freestyle bones (green)</p>
+      <canvas id="reconstructed" width="800" height="500"></canvas>
+    </div>
+    <div>
+      <p>Overlay — original (blue) vs reconstructed (green)</p>
+      <canvas id="overlay" width="800" height="500"></canvas>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Skeleton, JOINTS, BONES } from './js/skeleton.js';
+    import {
+      CHAINS,
+      computeBoneLengths,
+      globalToAngles,
+      verifyAngles,
+      anglesToGlobal,
+      globalToDeltas,
+      fusePose
+    } from './js/fusion.js';
+
+    const log = document.getElementById('log');
+    function print(msg, cls) {
+      const div = document.createElement('div');
+      div.className = cls || '';
+      div.textContent = msg;
+      log.appendChild(div);
+    }
+    function printPre(msg) {
+      const pre = document.createElement('pre');
+      pre.textContent = msg;
+      log.appendChild(pre);
+    }
+
+    const skeleton = new Skeleton();
+    const defaultPose = skeleton.getDefaultPose();
+
+    // --- Draw helper ---
+    function drawPose(canvasId, pose, color) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, 800, 500);
+      skeleton.draw(ctx, pose, { strokeColor: color, lineWidth: 3 });
+    }
+    function drawOverlay(canvasId, pose1, color1, pose2, color2) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, 800, 500);
+      skeleton.draw(ctx, pose1, { strokeColor: color1, lineWidth: 3 });
+      skeleton.draw(ctx, pose2, { strokeColor: color2, lineWidth: 2 });
+    }
+
+    // --- Load learnt move ---
+    async function run() {
+      print('Loading shuffle.json (learnt from Levels by Avicii)...');
+      const resp = await fetch('library/moves/shuffle.json');
+      const data = await resp.json();
+
+      // Convert first pose from [x,y] arrays to {x,y} objects
+      const rawPose = data.poses[0];
+      const learntPose = {};
+      for (const joint of JOINTS) {
+        const arr = rawPose.joints[joint];
+        learntPose[joint] = arr ? { x: arr[0], y: arr[1] } : { ...defaultPose[joint] };
+      }
+
+      // ====== TEST 1: Angle Verification ======
+      print('');
+      print('=== TEST 1: Relative angle accumulation matches absolute ===');
+      const errors = verifyAngles(learntPose);
+      let allPass = true;
+      for (const [chain, boneErrors] of Object.entries(errors)) {
+        const joints = CHAINS[chain];
+        for (let i = 0; i < boneErrors.length; i++) {
+          const boneName = `${joints[i]}→${joints[i+1]}`;
+          const errDeg = (boneErrors[i] * 180 / Math.PI).toFixed(6);
+          const ok = boneErrors[i] < 1e-10;
+          if (!ok) allPass = false;
+          print(
+            `  ${chain} / ${boneName}: error = ${errDeg}°  ${ok ? '✓' : '✗'}`,
+            ok ? 'pass' : 'fail'
+          );
+        }
+      }
+      print(allPass ? 'TEST 1 PASSED — all angles self-consistent' : 'TEST 1 FAILED', allPass ? 'pass' : 'fail');
+
+      // ====== TEST 2: Round-trip with same bone lengths ======
+      print('');
+      print('=== TEST 2: Round-trip — same bone lengths → should reconstruct original ===');
+      const learntLengths = computeBoneLengths(learntPose);
+      const angles = globalToAngles(learntPose);
+      const roundTrip = anglesToGlobal(angles, learntLengths, learntPose);
+
+      let maxErr = 0;
+      for (const joint of JOINTS) {
+        const dx = Math.abs(roundTrip[joint].x - learntPose[joint].x);
+        const dy = Math.abs(roundTrip[joint].y - learntPose[joint].y);
+        const err = Math.max(dx, dy);
+        maxErr = Math.max(maxErr, err);
+        const ok = err < 0.01;
+        if (!ok) {
+          print(`  ${joint}: Δx=${dx.toFixed(4)} Δy=${dy.toFixed(4)}  ✗`, 'fail');
+        }
+      }
+      const rt_ok = maxErr < 0.01;
+      print(
+        rt_ok
+          ? `TEST 2 PASSED — max error ${maxErr.toFixed(6)}px (round-trip perfect)`
+          : `TEST 2 FAILED — max error ${maxErr.toFixed(4)}px`,
+        rt_ok ? 'pass' : 'fail'
+      );
+
+      // ====== TEST 3: Reconstruct with freestyle bone lengths ======
+      print('');
+      print('=== TEST 3: Reconstruct learnt pose using freestyle bone lengths ===');
+      const freestyleLengths = computeBoneLengths(defaultPose);
+
+      print('  Bone length comparison (learnt → freestyle):');
+      for (const [chain, joints] of Object.entries(CHAINS)) {
+        for (let i = 0; i < learntLengths[chain].length; i++) {
+          const boneName = `${joints[i]}→${joints[i+1]}`;
+          print(`    ${boneName}: ${learntLengths[chain][i].toFixed(1)}px → ${freestyleLengths[chain][i].toFixed(1)}px`);
+        }
+      }
+
+      const reconstructed = anglesToGlobal(angles, freestyleLengths, defaultPose);
+
+      print('  Reconstructed pose (freestyle proportions):');
+      for (const joint of JOINTS) {
+        print(`    ${joint}: (${reconstructed[joint].x.toFixed(1)}, ${reconstructed[joint].y.toFixed(1)})`);
+      }
+
+      // ====== TEST 4: Full fusion pipeline → deltas ======
+      print('');
+      print('=== TEST 4: Full fusePose → deltas ===');
+      const deltas = fusePose(learntPose, defaultPose, freestyleLengths);
+      printPre(JSON.stringify(deltas, null, 2));
+
+      // ====== TEST 5: Run across multiple frames ======
+      print('');
+      print('=== TEST 5: Verify across all frames in shuffle.json ===');
+      let frameMaxErr = 0;
+      let frameFailCount = 0;
+      for (let f = 0; f < data.poses.length; f++) {
+        const fp = {};
+        for (const joint of JOINTS) {
+          const arr = data.poses[f].joints[joint];
+          fp[joint] = arr ? { x: arr[0], y: arr[1] } : { ...defaultPose[joint] };
+        }
+        const fErrors = verifyAngles(fp);
+        for (const boneErrors of Object.values(fErrors)) {
+          for (const e of boneErrors) {
+            if (e > frameMaxErr) frameMaxErr = e;
+            if (e > 1e-10) frameFailCount++;
+          }
+        }
+      }
+      const f_ok = frameFailCount === 0;
+      print(
+        f_ok
+          ? `TEST 5 PASSED — ${data.poses.length} frames verified, max error ${(frameMaxErr * 180 / Math.PI).toFixed(8)}°`
+          : `TEST 5 FAILED — ${frameFailCount} bone(s) with error > threshold`,
+        f_ok ? 'pass' : 'fail'
+      );
+
+      // ====== Visual ======
+      // Use a mid-animation frame for more interesting visual
+      const midIdx = Math.floor(data.poses.length / 2);
+      const midRaw = data.poses[midIdx];
+      const midPose = {};
+      for (const joint of JOINTS) {
+        const arr = midRaw.joints[joint];
+        midPose[joint] = arr ? { x: arr[0], y: arr[1] } : { ...defaultPose[joint] };
+      }
+      const midAngles = globalToAngles(midPose);
+      const midRecon = anglesToGlobal(midAngles, freestyleLengths, defaultPose);
+
+      drawPose('original', midPose, '#44aaff');
+      drawPose('reconstructed', midRecon, '#44ff88');
+      drawOverlay('overlay', midPose, '#44aaff', midRecon, '#44ff88');
+
+      print('');
+      print(`Visual: showing frame ${midIdx} (t=${midRaw.t.toFixed(2)}s)`);
+    }
+
+    run().catch(err => print('ERROR: ' + err.message, 'fail'));
+  </script>
+</body>
+</html>
