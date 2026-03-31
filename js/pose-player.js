@@ -1,4 +1,5 @@
 import { Skeleton, JOINTS } from './skeleton.js';
+import { computeBoneLengths, globalToAngles, anglesToGlobal } from './fusion.js';
 
 export class PosePlayer {
     constructor() {
@@ -21,18 +22,23 @@ export class PosePlayer {
         this._sampleFps = data.meta.sampleFps;
 
         const defaults = new Skeleton().getDefaultPose();
+        const targetLengths = computeBoneLengths(defaults);
 
-        // Pre-convert all frames from [x,y] → {x,y}
+        // Pre-convert all frames from [x,y] → {x,y} → fused via angle decomposition
         this._frames = data.poses.map(frame => {
-            const pose = {};
+            const raw = {};
             for (const joint of JOINTS) {
                 const arr = frame.joints[joint];
                 if (arr) {
-                    pose[joint] = { x: arr[0], y: arr[1] };
+                    raw[joint] = { x: arr[0], y: arr[1] };
                 } else {
-                    pose[joint] = { x: defaults[joint].x, y: defaults[joint].y };
+                    raw[joint] = { x: defaults[joint].x, y: defaults[joint].y };
                 }
             }
+
+            // Fuse: extract angles from source, reconstruct with freestyle proportions
+            const angles = globalToAngles(raw);
+            const pose = anglesToGlobal(angles, targetLengths, defaults);
             pose._t = frame.t;
             return pose;
         });
