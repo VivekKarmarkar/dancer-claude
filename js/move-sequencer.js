@@ -1,5 +1,6 @@
 import { getAllMoves, getMovesByEnergy } from './moves.js';
 import { Skeleton, JOINTS } from './skeleton.js';
+import { computeBoneLengths, globalToAngles, anglesToGlobal } from './fusion.js';
 
 // Joints belonging to upper vs lower body for layered movement
 const UPPER_JOINTS = ['head', 'neck', 'leftShoulder', 'rightShoulder', 'leftElbow', 'rightElbow', 'leftHand', 'rightHand'];
@@ -37,9 +38,78 @@ export class MoveSequencer {
         this._lastTime = 0;
         this._idlePhase = 0;
 
+        // Fusion: learnt moves + probability slider
+        this.fusionProbability = 0;   // 0 = pure freestyle, 1 = pure learnt
+        this._learntMoves = [];       // learnt moves converted to sequencer format
+        this._learntLoaded = false;
+
         // Initialize with a move
         this._pickNewMove(this.layers.primary, false);
         this._pickNewMove(this.layers.arms, false, 'arms');
+    }
+
+    /**
+     * Load learnt moves from manifest, convert to sequencer-compatible format.
+     * Each learnt move becomes a move object with keyframes (deltas) + metadata.
+     */
+    async loadLearntMoves() {
+        try {
+            const resp = await fetch('library/moves/manifest.json');
+            if (!resp.ok) return;
+            const manifest = await resp.json();
+
+            const defaultPose = this.skeleton.getDefaultPose();
+
+            for (const entry of manifest) {
+                const moveResp = await fetch(`library/moves/${entry.stem}.json`);
+                if (!moveResp.ok) continue;
+                const data = await moveResp.json();
+
+                // Convert all frames to delta keyframes
+                const totalFrames = data.poses.length;
+                const keyframes = [{ time: 0.0, pose: {} }]; // start at standing
+
+                for (let i = 0; i < totalFrames; i++) {
+                    const raw = data.poses[i];
+                    const t = totalFrames > 1 ? i / (totalFrames - 1) : 0;
+
+                    const pose = {};
+                    for (const joint of JOINTS) {
+                        const arr = raw.joints[joint];
+                        if (!arr) continue;
+                        const dx = Math.round((arr[0] - defaultPose[joint].x) * 10) / 10;
+                        const dy = Math.round((arr[1] - defaultPose[joint].y) * 10) / 10;
+                        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+                            pose[joint] = { x: dx, y: dy };
+                        }
+                    }
+
+                    // Skip if this is the first or last frame (we add standing bookends)
+                    if (i > 0 && i < totalFrames - 1) {
+                        keyframes.push({ time: t, pose });
+                    }
+                }
+
+                keyframes.push({ time: 1.0, pose: {} }); // end at standing
+
+                const move = {
+                    name: entry.name,
+                    energy: data.meta.energy || 'mid',
+                    durationBeats: data.meta.durationBeats || 2,
+                    type: data.meta.type || 'full-body',
+                    fixedDuration: data.meta.duration || 5.0,
+                    isLearnt: true,
+                    keyframes,
+                };
+
+                this._learntMoves.push(move);
+            }
+
+            this._learntLoaded = this._learntMoves.length > 0;
+            console.log(`Fusion: loaded ${this._learntMoves.length} learnt moves`);
+        } catch {
+            // No manifest or load error — fusion just won't have learnt moves
+        }
     }
 
     _createLayer() {
@@ -130,8 +200,12 @@ export class MoveSequencer {
     _updateLayer(layer, analysis, currentTime, typeFilter) {
         if (!layer.currentMove) return;
 
-        // Compute move duration
-        layer.moveDuration = (layer.currentMove.durationBeats / this.bpm) * 60;
+        // Compute move duration — learnt moves use fixed 5s, freestyle uses BPM
+        if (layer.currentMove.fixedDuration) {
+            layer.moveDuration = layer.currentMove.fixedDuration;
+        } else {
+            layer.moveDuration = (layer.currentMove.durationBeats / this.bpm) * 60;
+        }
         if (layer.moveDuration <= 0) layer.moveDuration = 1;
 
         // Update progress
@@ -235,6 +309,11 @@ export class MoveSequencer {
             const nextDelta = this._getMovePoseAtProgress(layer.nextMove, 0);
             const t = this._springEase(layer.blendProgress);
             delta = this._mixDeltas(delta, nextDelta, t);
+        }
+
+        // Learnt moves are full-fidelity captures — skip variation and amplitude scaling
+        if (layer.currentMove && layer.currentMove.isLearnt) {
+            return delta;
         }
 
         // Apply per-instance variation (scale + offset + mirror)
@@ -378,7 +457,20 @@ export class MoveSequencer {
             energyLevel = 'high';
         }
 
-        let candidates = getMovesByEnergy(energyLevel);
+        // Biased coin flip: with probability p, pick from learnt bucket
+        const useLearnt = this._learntLoaded
+            && this.fusionProbability > 0
+            && Math.random() < this.fusionProbability;
+
+        let candidates;
+        if (useLearnt) {
+            // Pick from learnt moves, filtered by energy
+            candidates = this._learntMoves.filter(m => m.energy === energyLevel);
+            // Fall back to all learnt if no energy match
+            if (candidates.length === 0) candidates = this._learntMoves;
+        } else {
+            candidates = getMovesByEnergy(energyLevel);
+        }
 
         // Filter by type if specified
         if (typeFilter) {

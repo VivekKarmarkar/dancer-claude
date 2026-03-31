@@ -31,6 +31,7 @@
       <div class="mode-toggle">
         <button class="mode-btn active" data-mode="freestyle">Freestyle</button>
         <button class="mode-btn" data-mode="choreo">Learnt</button>
+        <button class="mode-btn" data-mode="fusion">Fusion</button>
       </div>
 
       <div id="freestyle-panel">
@@ -65,6 +66,19 @@
             <option value="" disabled selected>Pick a move...</option>
           </select>
         </div>
+      </div>
+
+      <div id="fusion-panel" style="display:none;">
+        <div class="fusion-slider-wrap">
+          <span class="fusion-label">Freestyle</span>
+          <input type="range" id="fusion-slider" min="0" max="100" value="50">
+          <span class="fusion-label">Learnt</span>
+          <span class="fusion-value" id="fusion-value">50%</span>
+        </div>
+        <label class="upload-label">
+          Upload Song
+          <input type="file" accept="audio/*" id="fusion-file-upload" hidden>
+        </label>
       </div>
     </section>
 

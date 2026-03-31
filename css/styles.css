@@ -232,6 +232,59 @@ header h1 {
   color: #ccccdd;
 }
 
+/* ===== Fusion Slider ===== */
+.fusion-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.fusion-label {
+  font-size: 0.8rem;
+  color: #8888aa;
+  white-space: nowrap;
+}
+
+.fusion-value {
+  font-size: 0.8rem;
+  color: #6c5ce7;
+  font-weight: 600;
+  min-width: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#fusion-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 200px;
+  height: 6px;
+  background: linear-gradient(to right, #2ecc71, #6c5ce7);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+#fusion-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
+#fusion-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
 /* ===== Controls ===== */
 .controls {
   display: flex;

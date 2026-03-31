@@ -30,6 +30,9 @@ class DancerApp {
 
         this._bindUI();
         this._animate();
+
+        // Pre-load learnt moves for fusion mode
+        this.sequencer.loadLearntMoves();
     }
 
     _bindUI() {
@@ -62,6 +65,7 @@ class DancerApp {
         const modeButtons = document.querySelectorAll('[data-mode]');
         const freestylePanel = document.getElementById('freestyle-panel');
         const choreoPanel = document.getElementById('choreo-panel');
+        const fusionPanel = document.getElementById('fusion-panel');
         modeButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 modeButtons.forEach(b => b.classList.remove('active'));
@@ -70,6 +74,15 @@ class DancerApp {
 
                 freestylePanel.style.display = this.mode === 'freestyle' ? '' : 'none';
                 choreoPanel.style.display = this.mode === 'choreo' ? '' : 'none';
+                fusionPanel.style.display = this.mode === 'fusion' ? '' : 'none';
+
+                // Set fusion probability: 0 for freestyle, slider value for fusion
+                if (this.mode === 'fusion') {
+                    const slider = document.getElementById('fusion-slider');
+                    this.sequencer.fusionProbability = parseInt(slider.value) / 100;
+                } else {
+                    this.sequencer.fusionProbability = 0;
+                }
 
                 // Stop playback on mode switch
                 if (this.isPlaying) {
@@ -78,6 +91,26 @@ class DancerApp {
                     document.getElementById('play-btn').textContent = 'Play';
                 }
             });
+        });
+
+        // FUSION SLIDER
+        const fusionSlider = document.getElementById('fusion-slider');
+        const fusionValue = document.getElementById('fusion-value');
+        fusionSlider.addEventListener('input', () => {
+            const val = parseInt(fusionSlider.value);
+            fusionValue.textContent = val + '%';
+            if (this.mode === 'fusion') {
+                this.sequencer.fusionProbability = val / 100;
+            }
+        });
+
+        // FUSION UPLOAD
+        const fusionUpload = document.getElementById('fusion-file-upload');
+        fusionUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.loadSong(file, file.name);
+            }
         });
 
         // LEARNT SUB-TOGGLE (Song / Move)
@@ -338,6 +371,7 @@ class DancerApp {
         if (this.mode === 'choreo' && this.posePlayer.isLoaded()) {
             pose = this.posePlayer.getPoseAtTime(this.audio.getCurrentTime());
         } else {
+            // Freestyle and Fusion both use the sequencer (fusion via biased coin)
             pose = this.sequencer.getCurrentPose();
         }
 
