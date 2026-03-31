@@ -29,6 +29,7 @@ from dictionary_learning_choreography import (
     JOINT_ORDER, N_JOINTS, BONES, BONE_INDICES, FPS,
     load_choreo, build_patches, center_patches,
 )
+from fusion_helpers import fuse_atom_sequence
 
 DARK_BG = "#0d1117"
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -500,7 +501,11 @@ MOVES_MANIFEST_PATH = MOVES_DIR / "manifest.json"
 
 def save_learned_moves(kept, atoms_data, song_name, choreo_path, window_sec,
                        activations, labels=None):
-    """Save each kept move as a mini-choreo JSON in library/moves/."""
+    """Save each kept move as a mini-choreo JSON in library/moves/.
+
+    Poses are fused onto the freestyle skeleton via angle decomposition.
+    Audio metadata (energy, durationBeats, type) is included when available.
+    """
     MOVES_DIR.mkdir(parents=True, exist_ok=True)
 
     # Load existing manifest
@@ -518,14 +523,18 @@ def save_learned_moves(kept, atoms_data, song_name, choreo_path, window_sec,
         gif_path = save_move_gif(seq, move_name)
         print(f"  GIF: {gif_path}")
 
-        # Build one loop of poses
+        # Fuse atom onto freestyle skeleton proportions
+        fused_seq = fuse_atom_sequence(seq)
+        print(f"  Fused {window_frames} frames onto freestyle skeleton")
+
+        # Build one loop of poses from fused data
         one_loop = []
         for frame_idx in range(window_frames):
             t = round(frame_idx / FPS, 4)
             joints = {}
             for j, name in enumerate(JOINT_ORDER):
-                joints[name] = [round(float(seq[frame_idx, j, 0]), 1),
-                                round(float(seq[frame_idx, j, 1]), 1)]
+                joints[name] = [round(float(fused_seq[frame_idx, j, 0]), 1),
+                                round(float(fused_seq[frame_idx, j, 1]), 1)]
             one_loop.append({"t": t, "joints": joints})
 
         # Repeat poses 5x for a 5-second looped clip
@@ -535,12 +544,15 @@ def save_learned_moves(kept, atoms_data, song_name, choreo_path, window_sec,
             offset = loop_i * window_sec
             for frame in one_loop:
                 poses.append({"t": round(frame["t"] + offset, 4), "joints": frame["joints"]})
-        total_duration = window_sec * n_loops
+        total_duration = 5.0  # hardcoded 5-second duration
 
         # All moves use the shared background track
         audio_filename = "learnt_moves_track.wav"
 
-        # Save mini-choreo JSON (same format PosePlayer expects)
+        # Audio metadata from auto-labeling
+        move_labels = (labels or {}).get(atom_id, {})
+
+        # Save mini-choreo JSON with fusion + metadata
         choreo_data = {
             "meta": {
                 "source": f"learned from {song_name}",
@@ -549,12 +561,19 @@ def save_learned_moves(kept, atoms_data, song_name, choreo_path, window_sec,
                 "poseCount": len(poses),
                 "sampleFps": FPS,
                 "canvas": [800, 500],
+                "energy": move_labels.get("energy", "mid"),
+                "durationBeats": move_labels.get("durationBeats", 2),
+                "type": move_labels.get("type", "full-body"),
+                "fused": True,
             },
             "poses": poses,
         }
         json_path = MOVES_DIR / f"{move_name}.json"
         json_path.write_text(json.dumps(choreo_data, indent=2))
         print(f"  JSON: {json_path}")
+        print(f"  Labels: energy={choreo_data['meta']['energy']}, "
+              f"durationBeats={choreo_data['meta']['durationBeats']}, "
+              f"type={choreo_data['meta']['type']}")
 
         # Add to manifest (avoid duplicates)
         if not any(m["stem"] == move_name for m in manifest):
