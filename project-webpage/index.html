@@ -201,6 +201,16 @@
   </div>
 </section>
 
+<!-- ── PROJECT OVERVIEW ──────────────────────────────── -->
+<section class="section">
+  <div class="section-inner">
+    <h2 class="section-header">Project Overview</h2>
+    <div class="video-wrap" style="max-width:960px;margin:0 auto;position:relative;padding-bottom:min(56.25%,540px);height:0;border-radius:12px;overflow:hidden;border:1px solid #23263a;">
+      <iframe src="https://www.youtube.com/embed/z62DJVUxkVw" title="Dancer Claude — Project Overview" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none"></iframe>
+    </div>
+  </div>
+</section>
+
 <!-- ── ARCHITECTURE ─────────────────────────────────── -->
 <section class="arch-section">
   <h2 class="section-header">Architecture</h2>
@@ -389,6 +399,46 @@
       <p>A dance is a language. Moves are words. Poses are letters. The dance alphabet is a finite set of discrete poses that compose into sequences, and sequences compose into choreography. This is the fundamental abstraction: every dance, no matter how complex, is a path through a finite alphabet.</p>
       <p>The freestyle vocabulary was hand-crafted: 23 moves categorized by energy level and body region. But learning new moves from video requires decomposition. Dictionary learning finds a compact basis for the choreography's function space, but mathematical compactness doesn't equal human meaning. A basis function might span two moves or capture a transition rather than a move. So a human reviews the candidates. This is human-in-the-loop dictionary learning: the machine proposes, the human disposes.</p>
       <p>The deepest design choice is the invariant. When two dancers of different heights perform the same move, their joint coordinates differ but their joint angles are identical. Angles are the invariant representation: they describe what the body is doing, independent of whose body is doing it. Extract angles from a YouTube dancer, reconstruct with the stick figure's bone lengths, and the move transfers with full fidelity. No heuristic scaling, no proportion hacks. Just the underlying law.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── THE CLAUDE CODE ANGLE ─────────────────────────── -->
+<section class="section">
+  <div class="section-inner">
+    <h2 class="section-header">The Claude Code Angle</h2>
+    <div class="section-text">
+      <p>This project could only have been built with Claude Code. Not because it's a good coding tool — because of something deeper about how the collaboration works.</p>
+      <p>Music is a physical wave with precise mathematical structure. Fourier analysis reveals its frequency content. That frequency content maps lawfully onto human perception — bass frequencies vibrate your chest cavity and trigger a motor response, tempo drives rhythm, energy drives intensity. These aren't metaphors. They're psychoacoustics — a studied, lawful bridge between physics and perception.</p>
+      <p>The dance engine models this bridge computationally. Energy is a bass-weighted first moment of the power spectral density, smoothed through an exponential moving average. Beat detection uses adaptive thresholding on low-frequency content. Amplitude scaling maps energy to movement size. These aren't arbitrary design choices — they're a computational proxy for how the human body responds to sound waves. Claude contributed the psychoacoustic model: the insight that bass frequencies drive physical movement because of wavelength-body resonance, and the specific implementation that weights bass at 45%, treble at 20%, with smoothing that mirrors the same mathematical structure as the Adam optimizer.</p>
+      <p>This is what made the feedback loop work. Vivek would watch the dancer and describe what looked wrong in natural language — "it looks like a stiff guy at a wedding." Claude could decode that into a specific parameter offset — groove bounce too weak, amplitude scaling not bass-responsive enough — because the mapping from perception to physics is known and lawful. Fix the parameter, the perception changes, Vivek describes the new offset, iterate. The loop converges because every bridge in the chain is real: music to math (Fourier), math to code (algorithms), code to perception (the dance changes), perception to language (Vivek describes it), language to code (Claude understands all the bridges).</p>
+      <p>Beyond the feedback loop, the project requires local machine access at every level. YouTube videos are downloaded with yt-dlp. MediaPipe runs computer vision on large video files. Dictionary learning (sklearn) decomposes choreographies into atoms. A GTK dialog pops up for human-in-the-loop review. The fusion pipeline runs angle decomposition in both Python and JavaScript. None of this is possible in a browser-only app builder like Lovable — the project spans frontend signal processing, Python ML pipelines, local file I/O, and native GUI, all orchestrated through a single coding agent.</p>
+      <p>The vibes have physics underneath them. That's why this works.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── PROFESSOR CLAUDE TEACHES DANCER CLAUDE ──────── -->
+<section class="section">
+  <div class="section-inner">
+    <h2 class="section-header">Professor Claude Teaches Dancer Claude</h2>
+    <div class="section-text">
+      <p>Professor Claude is a separate project — a Socratic voice teaching system built with Claude Code. It's a voice interface where you ask questions and Claude teaches you through dialogue, not lectures, via a cute orange robot face.</p>
+      <p>This is a raw recording of a Socratic session where Professor Claude walks through the Dancer Claude project at a high level — what the three modes are, how they work, and how they connect. The audio crackles and the production is rough, but that's the point: this is an unscripted, real exchange, not a polished demo. It captures the "meta" moment of using one Claude Code project to understand another Claude Code project.</p>
+      <p>The deeper technical discussions — signal processing, spring easing, the perception-physics feedback loop — happened in later unrecorded sessions. We decided that the pressure of screen recording changed the quality of the Socratic dialogue, so this remains the one recorded example of the exchange. The insights from those later sessions are summarized in the sections above.</p>
+    </div>
+    <div class="video-wrap" style="max-width:960px;margin:24px auto 0;position:relative;padding-bottom:min(56.25%,540px);height:0;border-radius:12px;overflow:hidden;border:1px solid #23263a;">
+      <iframe src="https://www.youtube.com/embed/zjzYER-Vaco" title="Professor Claude Teaches Dancer Claude" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none"></iframe>
+    </div>
+  </div>
+</section>
+
+<!-- ── OPA GANGNAM STYLE! ──────────────────────────── -->
+<section class="section">
+  <div class="section-inner">
+    <h2 class="section-header">Opa Gangnam Style!</h2>
+    <div class="video-wrap" style="max-width:960px;margin:0 auto;position:relative;padding-bottom:min(56.25%,540px);height:0;border-radius:12px;overflow:hidden;border:1px solid #23263a;">
+      <iframe src="https://www.youtube.com/embed/Hw2BSMZRFg4" title="Opa Gangnam Style!" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none"></iframe>
     </div>
   </div>
 </section>
