@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interpolation Visualizer — Smoothstep vs Spring Easing</title>
+<style>
+body { margin: 0; background: #0f1019; color: #e0e0e0; font-family: 'DM Sans', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+h1 { font-size: 22px; margin-bottom: 4px; }
+.sub { color: #888; font-size: 14px; margin-bottom: 20px; }
+.container { display: flex; gap: 30px; flex-wrap: wrap; justify-content: center; }
+.panel { text-align: center; }
+.panel h2 { font-size: 16px; margin-bottom: 8px; }
+canvas { border: 1px solid #23263a; border-radius: 8px; display: block; margin-bottom: 6px; }
+.controls { margin-top: 16px; display: flex; gap: 16px; align-items: center; justify-content: center; }
+button { font-family: inherit; font-size: 13px; padding: 6px 16px; background: #222; color: #eee; border: 1px solid #444; border-radius: 6px; cursor: pointer; }
+button:hover { border-color: #888; }
+.speed-label { font-size: 12px; color: #888; }
+input[type=range] { width: 100px; }
+.legend { display: flex; gap: 16px; justify-content: center; margin-top: 10px; font-size: 12px; color: #888; }
+.legend span { display: flex; align-items: center; gap: 4px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body>
+
+<h1>Interpolation Visualizer</h1>
+<p class="sub">Two functions f(t) and g(t) being interpolated — watch the red dot blend between them</p>
+
+<div class="container">
+  <div class="panel">
+    <h2 style="color:#38bdf8">Smoothstep</h2>
+    <canvas id="smoothstep" width="500" height="400"></canvas>
+  </div>
+  <div class="panel">
+    <h2 style="color:#f97316">Spring Easing</h2>
+    <canvas id="spring" width="500" height="400"></canvas>
+  </div>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#4ade80"></span> f(t) — sine wave</span>
+  <span><span class="dot" style="background:#38bdf8"></span> g(t) — cosine wave</span>
+  <span><span class="dot" style="background:#ef4444"></span> Interpolated point</span>
+  <span><span class="dot" style="background:#f59e0b"></span> Locus trail</span>
+  <span style="color:#666">Gray: easing curve k(t)</span>
+</div>
+
+<div class="controls">
+  <button id="restart">Restart</button>
+  <span class="speed-label">Speed:</span>
+  <input type="range" id="speed" min="1" max="10" value="3">
+  <span class="speed-label" id="speed-val">0.3x</span>
+</div>
+
+<script>
+// ─── Easing functions ────────────────────────────
+function smoothstep(t) {
+  t = Math.max(0, Math.min(1, t));
+  return t * t * (3 - 2 * t);
+}
+
+function springEase(t) {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const c4 = (2 * Math.PI) / 4.5;
+  return 1 - Math.pow(2, -8 * t) * Math.cos(t * c4);
+}
+
+// ─── The two functions to interpolate between ────
+// f(t): a sine wave offset up
+function fFunc(t) { return 0.3 * Math.sin(t * Math.PI * 2) + 0.7; }
+// g(t): a cosine wave offset down
+function gFunc(t) { return 0.3 * Math.cos(t * Math.PI * 3) + 0.3; }
+
+// ─── Animation state ─────────────────────────────
+const W = 500, H = 400;
+const PAD = 50;
+const PLOT_W = W - PAD * 2;
+const PLOT_H = H - PAD * 2;
+
+function createState() {
+  return {
+    progress: 0,      // 0 to 1, the interpolation parameter
+    trail: [],         // locus of the red dot
+    easingTrail: [],   // locus of easing curve
+  };
+}
+
+let stateSmooth = createState();
+let stateSpring = createState();
+let speed = 0.003;
+let animId;
+
+// ─── Drawing ─────────────────────────────────────
+function txX(t) { return PAD + t * PLOT_W; }
+function txY(v) { return PAD + (1 - v) * PLOT_H; }
+
+function drawScene(ctx, state, easingFn, label, accentColor) {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#0f1019';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#1a1c2a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const x = PAD + (i / 10) * PLOT_W;
+    ctx.beginPath(); ctx.moveTo(x, PAD); ctx.lineTo(x, PAD + PLOT_H); ctx.stroke();
+    const y = PAD + (i / 10) * PLOT_H;
+    ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(PAD + PLOT_W, y); ctx.stroke();
+  }
+
+  // Axes labels
+  ctx.fillStyle = '#555';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('t →', W / 2, H - 10);
+  ctx.save();
+  ctx.translate(14, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('value', 0, 0);
+  ctx.restore();
+
+  // t markers
+  ctx.fillStyle = '#444';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 4; i++) {
+    ctx.fillText((i * 0.25).toFixed(2), txX(i / 4), PAD + PLOT_H + 16);
+  }
+
+  // Draw f(t) — green
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i <= 200; i++) {
+    const t = i / 200;
+    const x = txX(t);
+    const y = txY(fFunc(t));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Draw g(t) — blue
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i <= 200; i++) {
+    const t = i / 200;
+    const x = txX(t);
+    const y = txY(gFunc(t));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Draw easing curve k(t) — gray, in background
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  for (let i = 0; i <= 200; i++) {
+    const t = i / 200;
+    const x = txX(t);
+    const y = txY(easingFn(t));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Current interpolation parameter
+  const p = state.progress;
+  const k = easingFn(p);
+
+  // Current t position — vertical dashed line
+  const curX = txX(p);
+  ctx.strokeStyle = '#ffffff30';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(curX, PAD);
+  ctx.lineTo(curX, PAD + PLOT_H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Points on f and g at current t
+  const fVal = fFunc(p);
+  const gVal = gFunc(p);
+  const interpVal = (1 - k) * fVal + k * gVal;
+
+  const fY = txY(fVal);
+  const gY = txY(gVal);
+  const interpY = txY(interpVal);
+
+  // Vertical segment joining f(t) and g(t)
+  ctx.strokeStyle = '#ffffff40';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(curX, fY);
+  ctx.lineTo(curX, gY);
+  ctx.stroke();
+
+  // f(t) dot — green
+  ctx.beginPath();
+  ctx.arc(curX, fY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#4ade80';
+  ctx.fill();
+
+  // g(t) dot — blue
+  ctx.beginPath();
+  ctx.arc(curX, gY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#38bdf8';
+  ctx.fill();
+
+  // Draw locus trail — orange
+  if (state.trail.length > 1) {
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    for (let i = 0; i < state.trail.length; i++) {
+      const pt = state.trail[i];
+      const x = txX(pt.t);
+      const y = txY(pt.v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Interpolated point — red dot (big, prominent)
+  ctx.beginPath();
+  ctx.arc(curX, interpY, 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#ef4444';
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // k value label
+  ctx.fillStyle = accentColor;
+  ctx.font = 'bold 13px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`k = ${k.toFixed(3)}`, PAD + 4, PAD - 8);
+
+  // Progress label
+  ctx.fillStyle = '#888';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'right';
+  ctx.fillText(`t = ${p.toFixed(3)}`, PAD + PLOT_W, PAD - 8);
+
+  // Overshoot indicator for spring
+  if (k > 1.01) {
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('OVERSHOOT!', W / 2, PAD + PLOT_H + 35);
+  }
+}
+
+// ─── Animation loop ──────────────────────────────
+function animate() {
+  const canvasSmooth = document.getElementById('smoothstep');
+  const canvasSpring = document.getElementById('spring');
+  const ctxSmooth = canvasSmooth.getContext('2d');
+  const ctxSpring = canvasSpring.getContext('2d');
+
+  // Advance
+  stateSmooth.progress += speed;
+  stateSpring.progress += speed;
+
+  // Loop
+  if (stateSmooth.progress > 1.05) {
+    stateSmooth = createState();
+    stateSpring = createState();
+  }
+
+  const pS = Math.min(1, stateSmooth.progress);
+  const pR = Math.min(1, stateSpring.progress);
+
+  // Record trail
+  const kS = smoothstep(pS);
+  const kR = springEase(pR);
+  const interpS = (1 - kS) * fFunc(pS) + kS * gFunc(pS);
+  const interpR = (1 - kR) * fFunc(pR) + kR * gFunc(pR);
+
+  stateSmooth.trail.push({ t: pS, v: interpS });
+  stateSpring.trail.push({ t: pR, v: interpR });
+
+  drawScene(ctxSmooth, stateSmooth, smoothstep, 'Smoothstep', '#38bdf8');
+  drawScene(ctxSpring, stateSpring, springEase, 'Spring Easing', '#f97316');
+
+  animId = requestAnimationFrame(animate);
+}
+
+// ─── Controls ────────────────────────────────────
+document.getElementById('restart').addEventListener('click', () => {
+  stateSmooth = createState();
+  stateSpring = createState();
+});
+
+const speedSlider = document.getElementById('speed');
+const speedVal = document.getElementById('speed-val');
+speedSlider.addEventListener('input', () => {
+  speed = parseInt(speedSlider.value) * 0.001;
+  speedVal.textContent = (speed * 1000 / 10).toFixed(1) + 'x';
+});
+
+// Start
+animate();
+</script>
+</body>
+</html>

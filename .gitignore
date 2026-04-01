@@ -33,4 +33,5 @@ tools/analysis_output/
 tools/test_tracks/
 dancer-claude-architecture.html
 wonyp reference project website/
-lessons/
+lessons/*.mkv
+lessons/*.mp4
