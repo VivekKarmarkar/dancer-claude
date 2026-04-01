@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dancer Claude</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+<style>
+/* ─── Project page sections (below the app) ────────── */
+.proj *, .proj *::before, .proj *::after { box-sizing: border-box; }
+.proj {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  color: #e0e0e0;
+}
+
+.proj .section { padding: 80px 24px; }
+.proj .section-inner { max-width: 700px; margin: 0 auto; }
+.proj .section-header {
+  font-size: 32px; font-weight: 700; color: #e0e0e0;
+  margin-bottom: 48px; text-align: center; letter-spacing: 0.5px;
+}
+.proj .section-text p { margin-bottom: 1.4em; color: #c8c8c8; }
+.proj .section-text p:last-child { margin-bottom: 0; }
+
+/* ─── Divider ─────────────────────────────────────── */
+.proj .divider {
+  max-width: 700px; margin: 0 auto;
+  border: none; border-top: 1px solid #23263a;
+}
+
+/* ─── Architecture diagram ────────────────────────── */
+.proj .arch-section { padding: 80px 24px; }
+.proj .arch-section .section-header { max-width: 700px; margin: 0 auto 48px; }
+
+.proj .arch-diagram { max-width: 1100px; margin: 0 auto 56px; }
+.proj .arch-legend {
+  display: flex; justify-content: center; gap: 48px;
+  padding: 0 24px 12px; flex-wrap: wrap;
+}
+.proj .legend-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.proj .legend-top { display: flex; align-items: center; gap: 8px; }
+.proj .legend-emoji { font-size: 22px; }
+.proj .legend-name { font-weight: 700; font-size: 18px; }
+.proj .legend-model { color: #e0e0e0; font-weight: 700; font-size: 18px; }
+
+.proj .arch-canvas { width: 100%; aspect-ratio: 980 / 480; max-height: 480px; }
+.proj .arch-canvas svg { width: 100%; height: 100%; display: block; }
+
+.proj .node rect {
+  cursor: pointer; transition: stroke-width 0.15s, filter 0.15s;
+}
+.proj .node:hover rect { stroke-width: 2.8; }
+.proj .node-emoji { font-size: 17px; pointer-events: none; }
+.proj .node-label { font-size: 12.5px; font-weight: 700; pointer-events: none; }
+.proj .step-num { font-size: 9px; pointer-events: none; fill: #555; }
+
+.proj .arch-detail {
+  background: #161822; border-top: 1px solid #2e3140;
+  border-radius: 0 0 12px 12px; padding: 14px 24px;
+  min-height: 64px; display: flex; align-items: center; gap: 18px;
+}
+.proj .arch-detail .d-icon { font-size: 26px; flex-shrink: 0; }
+.proj .arch-detail .d-name {
+  color: #f97316; font-weight: 700; font-size: 15px;
+  min-width: 140px; flex-shrink: 0;
+}
+.proj .arch-detail .d-desc {
+  color: #bbb; font-size: 13px; line-height: 1.55; flex: 1;
+}
+
+/* ─── GitHub footer ───────────────────────────────── */
+.proj .github-footer { text-align: center; padding: 60px 24px 80px; }
+.proj .github-footer a {
+  display: inline-flex; align-items: center; gap: 10px;
+  color: #a0a0a0; text-decoration: none; font-size: 16px; transition: color 0.2s;
+}
+.proj .github-footer a:hover { color: #e0e0e0; }
+.proj .github-footer svg { fill: currentColor; }
+
+/* ─── Responsive ──────────────────────────────────── */
+@media (max-width: 640px) {
+  .proj .section { padding: 60px 20px; }
+  .proj .arch-section { padding: 60px 16px; }
+  .proj .section-header { font-size: 26px; margin-bottom: 36px; }
+  .proj .arch-legend { gap: 24px; }
+  .proj .arch-detail { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 16px; }
+  .proj .arch-detail .d-name { min-width: unset; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- LIVE DEMO (the existing app)                        -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="app">
+  <header>
+    <h1>Dancer Claude</h1>
+    <div class="theme-toggle">
+      <button class="theme-btn active" data-theme="minimal">Minimal</button>
+      <button class="theme-btn" data-theme="stylized">Stylized</button>
+      <button class="theme-btn" data-theme="wild">Wild</button>
+    </div>
+  </header>
+
+  <canvas id="dance-floor" width="800" height="500"></canvas>
+
+  <section class="playback">
+    <p class="now-playing">No song loaded</p>
+    <div class="progress-bar">
+      <div class="progress-fill"></div>
+    </div>
+    <span class="time-display">0:00 / 0:00</span>
+  </section>
+
+  <section class="song-selection">
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="freestyle">Freestyle</button>
+      <button class="mode-btn" data-mode="choreo">Learnt</button>
+      <button class="mode-btn" data-mode="fusion">Fusion</button>
+    </div>
+
+    <div id="freestyle-panel">
+      <label class="upload-label">
+        Upload Song
+        <input type="file" accept="audio/*" id="file-upload" hidden>
+      </label>
+    </div>
+
+    <div id="choreo-panel" style="display:none;">
+      <div class="learnt-toggle">
+        <button class="learnt-btn active" data-learnt="song">Song</button>
+        <button class="learnt-btn" data-learnt="move">Move</button>
+      </div>
+      <div id="song-panel">
+        <select id="song-select">
+          <option value="" disabled selected>Pick a song...</option>
+          <option value="choreo_e945aeb3">YMCA — Village People</option>
+          <option value="choreo_b08abf2e">Low — T-Pain ft. Flo Rida</option>
+          <option value="choreo_f45b6e13">Paint the Town Red — Doja Cat</option>
+          <option value="choreo_3d290c67">Levels — Avicii</option>
+          <option value="choreo_abb179c0">Toxic — Britney Spears</option>
+          <option value="choreo_8cb1bb1d">Whistle — Flo Rida</option>
+          <option value="choreo_ed69a1bd">Swalla — Jason Derulo</option>
+          <option value="choreo_316e73fb">Gangnam Style — PSY</option>
+          <option value="choreo_1c8fc6ab">Macarena — Los del Rio</option>
+          <option value="choreo_8c8baa09">No Lie — Dua Lipa</option>
+        </select>
+      </div>
+      <div id="move-panel" style="display:none;">
+        <select id="move-select">
+          <option value="" disabled selected>Pick a move...</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="fusion-panel" style="display:none;">
+      <div class="fusion-slider-wrap">
+        <span class="fusion-label">Freestyle</span>
+        <input type="range" id="fusion-slider" min="0" max="100" value="50">
+        <span class="fusion-label">Learnt</span>
+        <span class="fusion-value" id="fusion-value">50%</span>
+      </div>
+      <label class="upload-label">
+        Upload Song
+        <input type="file" accept="audio/*" id="fusion-file-upload" hidden>
+      </label>
+    </div>
+  </section>
+
+  <section class="controls">
+    <button id="play-btn" disabled>Play</button>
+    <button id="record-btn" disabled>Record</button>
+    <button id="record-full-btn" disabled>Record Full Song</button>
+  </section>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- PROJECT CONTENT (scroll below the demo)             -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="proj">
+
+<hr class="divider" style="margin-top: 60px;">
+
+<!-- ── INTRODUCTION ─────────────────────────────────── -->
+<section class="section">
+  <div class="section-inner">
+    <h2 class="section-header">Introduction</h2>
+    <div class="section-text">
+      <p>A stick figure that dances to music in your browser. Upload any song and it improvises to the beat, picking from a vocabulary of 23 moves. Or switch to Learnt mode and it performs choreography extracted from real YouTube dance videos. Or try Fusion, where it blends both, controlled by a probability slider you can drag mid-song.</p>
+      <p>Three modes, three levels of intelligence. Freestyle is your average Joe at the club, grooving with a few reliable moves. Learnt is that same Joe after watching YouTube tutorials, performing choreography note-for-note. Fusion is Joe at the club after dance class, deciding moment-to-moment whether to bust out a new move or stick with what he knows.</p>
+      <p>Under the hood, the system combines real-time signal processing, computer vision, machine learning, and a physics-inspired invariant to make it all work together. The sections below explain how.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── ARCHITECTURE ─────────────────────────────────── -->
+<section class="arch-section">
+  <h2 class="section-header">Architecture</h2>
+
+  <div class="arch-diagram">
+    <!-- Legend -->
+    <div class="arch-legend">
+      <div class="legend-item"><div class="legend-top"><span class="legend-emoji">&#x1F442;</span><span class="legend-name" style="color:#f97316">Ears</span></div><span class="legend-model">Audio Engine</span></div>
+      <div class="legend-item"><div class="legend-top"><span class="legend-emoji">&#x1F483;</span><span class="legend-name" style="color:#38bdf8">Body</span></div><span class="legend-model">Skeleton + Sequencer</span></div>
+      <div class="legend-item"><div class="legend-top"><span class="legend-emoji">&#x1F441;&#xFE0F;</span><span class="legend-name" style="color:#4ade80">Eyes</span></div><span class="legend-model">MediaPipe CV</span></div>
+    </div>
+
+    <!-- SVG Diagram -->
+    <div class="arch-canvas">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 480" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <pattern id="dots" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+            <circle cx="15" cy="15" r="0.5" fill="#1a1c2a"/>
+          </pattern>
+          <filter id="particleGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="nodeGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#f97316"/>
+          </marker>
+          <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#38bdf8"/>
+          </marker>
+          <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#4ade80"/>
+          </marker>
+          <marker id="arrowPurple" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#bc8cff"/>
+          </marker>
+        </defs>
+
+        <rect width="980" height="480" fill="url(#dots)"/>
+
+        <!-- ── Row 1: Runtime pipeline (Freestyle/Fusion) ── -->
+        <text x="490" y="20" font-size="11" fill="#555" text-anchor="middle" font-weight="700" letter-spacing="2">RUNTIME</text>
+
+        <!-- Paths row 1 -->
+        <path id="p-1-2" d="M 145,80 C 185,80 205,80 240,80" fill="none" stroke="#f97316" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="7,5" marker-end="url(#arrowOrange)"/>
+        <path id="p-2-3" d="M 395,80 C 435,80 455,80 490,80" fill="none" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.4" marker-end="url(#arrowBlue)"/>
+        <path id="p-3-4" d="M 645,80 C 685,80 705,80 740,80" fill="none" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.4" marker-end="url(#arrowBlue)"/>
+        <path id="p-4-5" d="M 895,80 C 910,80 920,100 920,130" fill="none" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.4" marker-end="url(#arrowBlue)"/>
+
+        <!-- Row 1 nodes -->
+        <g class="node" data-step="1" onclick="selectStep(1)">
+          <rect x="15" y="50" width="130" height="60" rx="12" fill="#f9731610" stroke="#f97316" stroke-width="1.5"/>
+          <text class="step-num" x="25" y="62">1</text>
+          <text class="node-emoji" x="80" y="74" text-anchor="middle" fill="#f97316">&#x1F3B5;</text>
+          <text class="node-label" x="80" y="96" text-anchor="middle" fill="#f97316">Upload Song</text>
+        </g>
+        <g class="node" data-step="2" onclick="selectStep(2)">
+          <rect x="240" y="50" width="155" height="60" rx="12" fill="#f9731610" stroke="#f97316" stroke-width="1.5"/>
+          <text class="step-num" x="250" y="62">2</text>
+          <text class="node-emoji" x="317" y="74" text-anchor="middle" fill="#f97316">&#x1F442;</text>
+          <text class="node-label" x="317" y="96" text-anchor="middle" fill="#f97316">Hear the Music</text>
+        </g>
+        <g class="node" data-step="3" onclick="selectStep(3)">
+          <rect x="490" y="50" width="155" height="60" rx="12" fill="#38bdf810" stroke="#38bdf8" stroke-width="1.5"/>
+          <text class="step-num" x="500" y="62">3</text>
+          <text class="node-emoji" x="567" y="74" text-anchor="middle" fill="#38bdf8">&#x1F3B2;</text>
+          <text class="node-label" x="567" y="96" text-anchor="middle" fill="#38bdf8">Pick a Move</text>
+        </g>
+        <g class="node" data-step="4" onclick="selectStep(4)">
+          <rect x="740" y="50" width="155" height="60" rx="12" fill="#38bdf810" stroke="#38bdf8" stroke-width="1.5"/>
+          <text class="step-num" x="750" y="62">4</text>
+          <text class="node-emoji" x="817" y="74" text-anchor="middle" fill="#38bdf8">&#x1F483;</text>
+          <text class="node-label" x="817" y="96" text-anchor="middle" fill="#38bdf8">Dance</text>
+        </g>
+        <!-- Render node (end of row 1) -->
+        <g class="node" data-step="5" onclick="selectStep(5)">
+          <rect x="860" y="130" width="105" height="55" rx="12" fill="#88888812" stroke="#888" stroke-width="1.5"/>
+          <text class="step-num" x="870" y="142">5</text>
+          <text class="node-emoji" x="912" y="152" text-anchor="middle" fill="#aaa">&#x1F3AC;</text>
+          <text class="node-label" x="912" y="172" text-anchor="middle" fill="#aaa">Render</text>
+        </g>
+
+        <!-- ── Divider ── -->
+        <line x1="40" y1="210" x2="940" y2="210" stroke="#23263a" stroke-width="1"/>
+        <text x="160" y="235" font-size="11" fill="#555" text-anchor="middle" font-weight="700" letter-spacing="2">LEARNING PIPELINE</text>
+
+        <!-- ── Row 2: Learning pipeline ── -->
+        <path id="p-6-7" d="M 145,300 C 185,300 205,300 240,300" fill="none" stroke="#4ade80" stroke-width="2" stroke-opacity="0.4" marker-end="url(#arrowGreen)"/>
+        <path id="p-7-8" d="M 395,300 C 435,300 455,300 490,300" fill="none" stroke="#4ade80" stroke-width="2" stroke-opacity="0.4" marker-end="url(#arrowGreen)"/>
+        <path id="p-8-9" d="M 645,300 C 685,300 705,300 740,300" fill="none" stroke="#bc8cff" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="7,5" marker-end="url(#arrowPurple)"/>
+
+        <!-- Turn + row 3 -->
+        <path id="p-9-10" d="M 817,340 C 817,365 817,385 817,400" fill="none" stroke="#bc8cff" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="7,5" marker-end="url(#arrowPurple)"/>
+        <text x="860" y="380" font-size="20" fill="#333" text-anchor="middle">&#x21B5;</text>
+        <path id="p-10-11" d="M 740,430 C 700,430 680,430 645,430" fill="none" stroke="#bc8cff" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="7,5" marker-end="url(#arrowPurple)"/>
+        <path id="p-11-3" d="M 490,430 C 460,430 440,400 440,350 C 440,250 480,180 530,120" fill="none" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.25" stroke-dasharray="4,4" marker-end="url(#arrowBlue)"/>
+
+        <!-- Row 2 nodes -->
+        <g class="node" data-step="6" onclick="selectStep(6)">
+          <rect x="15" y="270" width="130" height="60" rx="12" fill="#4ade8010" stroke="#4ade80" stroke-width="1.5"/>
+          <text class="step-num" x="25" y="282">6</text>
+          <text class="node-emoji" x="80" y="294" text-anchor="middle" fill="#4ade80">&#x1F4F9;</text>
+          <text class="node-label" x="80" y="316" text-anchor="middle" fill="#4ade80">YouTube Video</text>
+        </g>
+        <g class="node" data-step="7" onclick="selectStep(7)">
+          <rect x="240" y="270" width="155" height="60" rx="12" fill="#4ade8010" stroke="#4ade80" stroke-width="1.5"/>
+          <text class="step-num" x="250" y="282">7</text>
+          <text class="node-emoji" x="317" y="294" text-anchor="middle" fill="#4ade80">&#x1F441;&#xFE0F;</text>
+          <text class="node-label" x="317" y="316" text-anchor="middle" fill="#4ade80">Watch Dancer</text>
+        </g>
+        <g class="node" data-step="8" onclick="selectStep(8)">
+          <rect x="490" y="270" width="155" height="60" rx="12" fill="#4ade8010" stroke="#4ade80" stroke-width="1.5"/>
+          <text class="step-num" x="500" y="282">8</text>
+          <text class="node-emoji" x="567" y="294" text-anchor="middle" fill="#4ade80">&#x1F9D1;&#x200D;&#x1F4BB;</text>
+          <text class="node-label" x="567" y="316" text-anchor="middle" fill="#4ade80">Extract Poses</text>
+        </g>
+        <g class="node" data-step="9" onclick="selectStep(9)">
+          <rect x="740" y="270" width="155" height="60" rx="12" fill="#bc8cff10" stroke="#bc8cff" stroke-width="1.5"/>
+          <text class="step-num" x="750" y="282">9</text>
+          <text class="node-emoji" x="817" y="294" text-anchor="middle" fill="#bc8cff">&#x1F9E9;</text>
+          <text class="node-label" x="817" y="316" text-anchor="middle" fill="#bc8cff">Find Patterns</text>
+        </g>
+
+        <!-- Row 3 nodes -->
+        <g class="node" data-step="10" onclick="selectStep(10)">
+          <rect x="740" y="400" width="155" height="60" rx="12" fill="#bc8cff10" stroke="#bc8cff" stroke-width="1.5"/>
+          <text class="step-num" x="750" y="412">10</text>
+          <text class="node-emoji" x="817" y="424" text-anchor="middle" fill="#bc8cff">&#x1F9D1;</text>
+          <text class="node-label" x="817" y="446" text-anchor="middle" fill="#bc8cff">Human Picks</text>
+        </g>
+        <g class="node" data-step="11" onclick="selectStep(11)">
+          <rect x="490" y="400" width="155" height="60" rx="12" fill="#bc8cff10" stroke="#bc8cff" stroke-width="1.5"/>
+          <text class="step-num" x="500" y="412">11</text>
+          <text class="node-emoji" x="567" y="424" text-anchor="middle" fill="#bc8cff">&#x1F517;</text>
+          <text class="node-label" x="567" y="446" text-anchor="middle" fill="#bc8cff">Fuse to Skeleton</text>
+        </g>
+        <text x="475" y="440" font-size="14" fill="#38bdf8" text-anchor="end" opacity="0.5">&#x2192; into Sequencer</text>
+
+        <!-- Animated particles -->
+        <!-- Runtime flow -->
+        <circle r="4" fill="#f97316" filter="url(#particleGlow)"><animateMotion dur="2s" repeatCount="indefinite" begin="0s"><mpath href="#p-1-2"/></animateMotion></circle>
+        <circle r="4" fill="#f97316" filter="url(#particleGlow)"><animateMotion dur="2s" repeatCount="indefinite" begin="1s"><mpath href="#p-1-2"/></animateMotion></circle>
+        <circle r="4" fill="#38bdf8" filter="url(#particleGlow)"><animateMotion dur="2s" repeatCount="indefinite" begin="0.3s"><mpath href="#p-2-3"/></animateMotion></circle>
+        <circle r="4" fill="#38bdf8" filter="url(#particleGlow)"><animateMotion dur="2s" repeatCount="indefinite" begin="1.3s"><mpath href="#p-2-3"/></animateMotion></circle>
+        <circle r="4" fill="#38bdf8" filter="url(#particleGlow)"><animateMotion dur="2s" repeatCount="indefinite" begin="0.5s"><mpath href="#p-3-4"/></animateMotion></circle>
+        <circle r="4" fill="#38bdf8" filter="url(#particleGlow)"><animateMotion dur="2s" repeatCount="indefinite" begin="1.5s"><mpath href="#p-3-4"/></animateMotion></circle>
+        <!-- Learning flow -->
+        <circle r="4" fill="#4ade80" filter="url(#particleGlow)"><animateMotion dur="2.5s" repeatCount="indefinite" begin="0s"><mpath href="#p-6-7"/></animateMotion></circle>
+        <circle r="4" fill="#4ade80" filter="url(#particleGlow)"><animateMotion dur="2.5s" repeatCount="indefinite" begin="1.25s"><mpath href="#p-6-7"/></animateMotion></circle>
+        <circle r="4" fill="#4ade80" filter="url(#particleGlow)"><animateMotion dur="2.5s" repeatCount="indefinite" begin="0.3s"><mpath href="#p-7-8"/></animateMotion></circle>
+        <circle r="4" fill="#4ade80" filter="url(#particleGlow)"><animateMotion dur="2.5s" repeatCount="indefinite" begin="1.55s"><mpath href="#p-7-8"/></animateMotion></circle>
+        <circle r="4" fill="#bc8cff" filter="url(#particleGlow)"><animateMotion dur="2.5s" repeatCount="indefinite" begin="0.5s"><mpath href="#p-8-9"/></animateMotion></circle>
+        <circle r="4" fill="#bc8cff" filter="url(#particleGlow)"><animateMotion dur="2.5s" repeatCount="indefinite" begin="1.75s"><mpath href="#p-8-9"/></animateMotion></circle>
+        <circle r="4" fill="#bc8cff" filter="url(#particleGlow)"><animateMotion dur="3s" repeatCount="indefinite" begin="0.7s"><mpath href="#p-9-10"/></animateMotion></circle>
+        <circle r="4" fill="#bc8cff" filter="url(#particleGlow)"><animateMotion dur="2.5s" repeatCount="indefinite" begin="0.9s"><mpath href="#p-10-11"/></animateMotion></circle>
+      </svg>
+    </div>
+
+    <!-- Detail bar -->
+    <div class="arch-detail">
+      <div class="d-icon" id="d-icon"></div>
+      <div class="d-name" id="d-name">Click any step to see how it works</div>
+      <div class="d-desc" id="d-desc"></div>
+    </div>
+  </div>
+
+  <!-- Architecture prose -->
+  <div class="section-inner">
+    <div class="section-text">
+      <p>Two pipelines power the system. The top row runs in real time in your browser. The bottom row runs offline on your machine.</p>
+      <p>At runtime, the Ears analyze the audio waveform every frame, splitting it into bass, mid, and treble bands to compute an energy score and detect beats. The Body's sequencer uses that energy to pick a move from the right intensity bucket, flipping a biased coin in Fusion mode to decide between freestyle and learnt vocabularies. The Skeleton renders the chosen pose at 60fps with smoothstep interpolation, groove bounce, and spring easing.</p>
+      <p>The learning pipeline starts with a YouTube dance video. The Eyes (MediaPipe) extract 13-joint poses at 15 frames per second. Dictionary learning decomposes the full choreography into recurring patterns, and a human reviews animated previews to select the ones that look like real dance moves. Selected atoms are fused onto the freestyle skeleton using angle decomposition, preserving the move's shape while adapting it to the stick figure's proportions.</p>
+      <p>The bridge between the two pipelines is the angle invariant. Relative joint angles don't change between dancers of different sizes. Extract angles from any source, reconstruct with the target skeleton's bone lengths, and the move transfers perfectly. This is what makes Fusion possible: both vocabularies live in the same coordinate space.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── DESIGN PHILOSOPHY ────────────────────────────── -->
+<section class="section">
+  <div class="section-inner">
+    <h2 class="section-header">Design Philosophy</h2>
+    <div class="section-text">
+      <p>A dance is a language. Moves are words. Poses are letters. The dance alphabet is a finite set of discrete poses that compose into sequences, and sequences compose into choreography. This is the fundamental abstraction: every dance, no matter how complex, is a path through a finite alphabet.</p>
+      <p>The freestyle vocabulary was hand-crafted: 23 moves categorized by energy level and body region. But learning new moves from video requires decomposition. Dictionary learning finds a compact basis for the choreography's function space, but mathematical compactness doesn't equal human meaning. A basis function might span two moves or capture a transition rather than a move. So a human reviews the candidates. This is human-in-the-loop dictionary learning: the machine proposes, the human disposes.</p>
+      <p>The deepest design choice is the invariant. When two dancers of different heights perform the same move, their joint coordinates differ but their joint angles are identical. Angles are the invariant representation: they describe what the body is doing, independent of whose body is doing it. Extract angles from a YouTube dancer, reconstruct with the stick figure's bone lengths, and the move transfers with full fidelity. No heuristic scaling, no proportion hacks. Just the underlying law.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── GITHUB FOOTER ────────────────────────────────── -->
+<footer class="github-footer">
+  <a href="https://github.com/VivekKarmarkar/dancer-claude" target="_blank" rel="noopener noreferrer">
+    <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+    </svg>
+    View on GitHub
+  </a>
+</footer>
+
+</div><!-- end .proj -->
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- SCRIPTS                                             -->
+<!-- ════════════════════════════════════════════════════ -->
+<script type="module" src="js/main.js"></script>
+<script>
+// ── Architecture diagram: step data + selection ──
+const stepData = {
+  1:  { icon: "\u{1F3B5}", name: "Upload Song",
+        desc: "You upload any audio file \u2014 MP3, WAV, OGG. That's the only input. In Freestyle and Fusion modes, the dancer improvises to whatever you give it." },
+  2:  { icon: "\u{1F442}", name: "Hear the Music",
+        desc: "The Audio Engine runs an FFT every frame, splitting the spectrum into bass, mid, and treble bands. It computes an energy score (bass-weighted) and detects beats using a threshold with cooldown. This drives everything downstream." },
+  3:  { icon: "\u{1F3B2}", name: "Pick a Move",
+        desc: "The Move Sequencer bins the current energy into low, mid, or high and picks a random move from that bucket. In Fusion mode, it first flips a biased coin \u2014 the slider controls the probability of picking from the learnt bucket vs. freestyle. Two layers run independently: a primary layer for full-body moves and an arms overlay." },
+  4:  { icon: "\u{1F483}", name: "Dance",
+        desc: "The 13-joint Skeleton renders the chosen pose. Moves are keyframe deltas applied on top of a standing default pose. Spring easing gives natural momentum, groove bounce adds a persistent beat-synced dip, and per-instance variation (random scale, offset, mirror) keeps it from looking robotic." },
+  5:  { icon: "\u{1F3AC}", name: "Render",
+        desc: "Three visual themes \u2014 Minimal (black on white), Stylized (cyan spotlight on dark stage), Wild (particles, trails, color shift) \u2014 all beat-reactive. Video export captures the canvas + audio to WebM." },
+  6:  { icon: "\u{1F4F9}", name: "YouTube Video",
+        desc: "yt-dlp downloads the video. Solo dancer, clean background, good lighting works best. YouTube Shorts are preferred \u2014 short duration means fast extraction." },
+  7:  { icon: "\u{1F441}\uFE0F", name: "Watch Dancer",
+        desc: "MediaPipe extracts 33 body landmarks per frame. These are mapped to our 13-joint skeleton and sampled at 15fps. Missing joints are forward-filled. The result is normalized to an 800\u00D7500 canvas with a target skeleton height of 380px." },
+  8:  { icon: "\u{1F9D1}\u200D\u{1F4BB}", name: "Extract Poses",
+        desc: "The full choreography is saved as a JSON file \u2014 timestamped joint positions at 15fps. Paired with the extracted MP3 audio. This is what PosePlayer loads for Learnt mode playback." },
+  9:  { icon: "\u{1F9E9}", name: "Find Patterns",
+        desc: "Dictionary learning (sklearn) decomposes the choreography into overlapping windows and finds recurring atoms \u2014 the mathematical building blocks. These are basis functions for the dance's function space. But a compact basis function isn't necessarily a dance move." },
+  10: { icon: "\u{1F9D1}", name: "Human Picks",
+        desc: "Each atom is rendered as an animated GIF and shown in a GTK dialog with checkboxes. The human watches them, picks the ones that look like real dance moves, names them, and submits. This is the quality gate \u2014 human-in-the-loop dictionary learning." },
+  11: { icon: "\u{1F517}", name: "Fuse to Skeleton",
+        desc: "Selected atoms are fused onto the freestyle skeleton using angle decomposition. Extract relative joint angles from the source pose, reconstruct with the freestyle bone lengths. The angles are the invariant \u2014 they don't change between dancers of different sizes. Moves are saved with audio metadata (energy, type) and fed into the Sequencer's learnt vocabulary." }
+};
+
+let selectedStep = null;
+
+function selectStep(n) {
+  document.querySelectorAll('.arch-diagram .node rect').forEach(r => {
+    r.setAttribute('stroke-width', '1.5');
+    r.removeAttribute('filter');
+  });
+
+  selectedStep = n;
+  const s = stepData[n];
+
+  const node = document.querySelector('.arch-diagram .node[data-step="' + n + '"] rect');
+  if (node) {
+    node.setAttribute('stroke-width', '3');
+    node.setAttribute('filter', 'url(#nodeGlow)');
+  }
+
+  document.getElementById('d-icon').textContent = s.icon;
+  document.getElementById('d-name').textContent = s.name;
+  document.getElementById('d-desc').textContent = s.desc;
+}
+</script>
+</body>
+</html>
