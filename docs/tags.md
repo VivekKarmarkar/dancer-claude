@@ -2,6 +2,6 @@
 
 | Category | Tags | Color |
 |----------|------|-------|
-| Techniques | Claude Code, DSP, Computer Vision | Orange |
-| Domain | Creative Technology | Cyan |
+| Techniques | Claude Code, DSP, Computer Vision, Machine Learning, Physics-Based Modeling | Orange |
+| Domain | Creative Technology, Music & Dance | Cyan |
 | Audience | AI Startups | Green |
