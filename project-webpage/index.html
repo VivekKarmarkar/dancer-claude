@@ -101,8 +101,25 @@
 <!-- LIVE DEMO (the existing app)                        -->
 <!-- ════════════════════════════════════════════════════ -->
 <div id="app">
-  <header>
-    <h1>Dancer Claude</h1>
+  <header style="flex-direction:column;align-items:flex-start;gap:8px;">
+    <h1 style="font-size:2.4rem;letter-spacing:1px;">Dancer Claude</h1>
+    <p style="font-size:15px;color:#a0a0a0;margin:0 0 4px;">A stick figure that dances to music &mdash; three ways</p>
+    <div class="hero-tags-wrap" style="display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:0 0 12px;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="hero-tag" style="padding:5px 16px;border-radius:20px;font-size:13px;color:#f97316;border:1px solid #f9731640;">Claude Code</span>
+        <span class="hero-tag" style="padding:5px 16px;border-radius:20px;font-size:13px;color:#f97316e0;border:1px solid #f9731638;">Signal Processing</span>
+        <span class="hero-tag" style="padding:5px 16px;border-radius:20px;font-size:13px;color:#f97316c0;border:1px solid #f9731632;">Computer Vision</span>
+        <span class="hero-tag" style="padding:5px 16px;border-radius:20px;font-size:13px;color:#f97316a0;border:1px solid #f973162c;">Machine Learning</span>
+        <span class="hero-tag" style="padding:5px 16px;border-radius:20px;font-size:13px;color:#f9731688;border:1px solid #f9731626;">Physics-Based Modeling</span>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="hero-tag" style="padding:5px 16px;border-radius:20px;font-size:13px;color:#38bdf8;border:1px solid #38bdf840;">Creative Technology</span>
+        <span class="hero-tag" style="padding:5px 16px;border-radius:20px;font-size:13px;color:#38bdf8a0;border:1px solid #38bdf825;">Music &amp; Dance</span>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <span class="hero-tag" style="padding:5px 16px;border-radius:20px;font-size:13px;color:#4ade80;border:1px solid #4ade8040;">AI Startups</span>
+      </div>
+    </div>
     <div class="theme-toggle">
       <button class="theme-btn active" data-theme="minimal">Minimal</button>
       <button class="theme-btn" data-theme="stylized">Stylized</button>
