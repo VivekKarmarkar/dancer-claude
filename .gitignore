@@ -15,6 +15,11 @@ tools/pose_landmarker.task
 # Demo videos in project webpage
 project-webpage/videos/
 
+# Remotion video project
+dancer-claude-video/node_modules/
+dancer-claude-video/out/
+dancer-claude-video/public/
+
 # Test screenshots
 fusion-demo-frame*.png
 fusion-test-results.png
